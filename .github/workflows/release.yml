@@ -39,6 +39,8 @@ jobs:
         run: gh release upload "$TAG" module.json module.zip --clobber
 
       - name: Register the version in Foundry's package library
+        # A pre-release is not served by releases/latest, so it must not be offered to every Foundry install either.
+        if: ${{ !github.event.release.prerelease }}
         env:
           FOUNDRY_RELEASE_TOKEN: ${{ secrets.FOUNDRY_RELEASE_TOKEN }}
           NOTES: ${{ github.event.release.html_url }}
