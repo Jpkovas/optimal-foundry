@@ -1,7 +1,7 @@
 {
   "id": "optimal-foundry",
   "title": "Optimal Foundry",
-  "description": "Otimização completa de mídia e rede: converte uploads e o acervo do mundo para WebP/WebM/Opus, pré-carrega no tempo ocioso, coordena a banda pelo mestre, aproveita CDN e distribui arquivos entre jogadores via P2P.",
+  "description": "Complete media and network optimization: converts uploads and the world's existing media to WebP/WebM/Opus, preloads during idle time, shares the bandwidth under the GM's control, takes advantage of a CDN and lets players exchange files peer-to-peer.",
   "version": "0.1.0",
   "authors": [
     {

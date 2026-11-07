@@ -1,132 +1,135 @@
 # Optimal Foundry
 
-Módulo para Foundry VTT (v14 ou mais novo, testado na 14.370) que deixa o mundo mais leve e mais rápido de carregar para todo mundo. Tudo roda no navegador: não há servidor extra nem programa para instalar.
+A Foundry VTT module (v14 or newer, tested on 14.370) that makes your world lighter and faster to load for everyone. Everything runs in the browser: there is no extra server and nothing to install.
 
-## O que ele faz
+## What it does
 
-- **Otimiza cada upload.** Antes de o arquivo chegar ao servidor, o navegador converte:
-  - imagens para **WebP** (SVG nunca é tocado; WebP e AVIF ficam como estão);
-  - vídeos para **WebM VP9** (com transparência quando o original tem);
-  - áudio para **Ogg Opus**.
-  Só a versão otimizada é guardada. Se o navegador de quem enviou não consegue converter, o original sobe e o mestre converte depois, em segundo plano.
-- **Otimiza o acervo que já existe, do jeito que você escolher.** O cliente do mestre converte a mídia que o mundo usa e aponta cenas, atores, diários, playlists etc. para as cópias novas. Três modos: **Automático** (converte tudo aos poucos, sem perguntar), **Revisar antes** (o padrão: lista o que seria convertido e só mexe no que você aprovar, na aba Mídia do painel) e **Não otimizar**. A otimização **não mexe nos originais**, e qualquer troca pode ser desfeita pelo painel. Só a Limpeza (opcional, no painel) esvazia originais, e ela não tem volta.
-- **Mantém a resolução por padrão.** Muda só o formato e a qualidade. Reduzir tamanho é opcional.
-- **Coordena a rede.** O mestre distribui a banda entre os jogadores, limita downloads simultâneos (útil em túneis gratuitos) e faz quem entra junto carregar a cena um de cada vez.
-- **Pré-carrega sozinho no tempo ocioso.** Quando ninguém está baixando nada, os jogadores buscam com antecedência o que devem precisar, do mais provável para o menos provável: as cenas que os jogadores e o mestre estão vendo, o resto da cena ativa e a playlist dela, o que está tocando, as cenas vizinhas na barra de navegação e na pasta, os destinos de teleporte, depois o resto da barra, as fichas dos personagens dos jogadores e, por fim, todas as outras cenas, playlists e diários visíveis aos jogadores. Não precisa marcar nada; marcar uma cena (botão direito na aba Cenas) só faz ela passar na frente.
-- **Aproveita um CDN** (como o Cloudflare) quando existe: detecta sozinho e libera mais banda.
-- **Troca arquivos entre jogadores (P2P).** Quem já tem um arquivo otimizado pode enviá-lo direto para os outros, poupando o upload de quem hospeda. Cada arquivo é conferido por hash antes de ser usado.
-- **Cache local** com Service Worker: arquivos otimizados ficam guardados no navegador e não são baixados de novo. As outras mídias (que podem mudar) também ficam guardadas, mas são conferidas com o servidor antes de usar, no máximo a cada 30 segundos.
+- **Optimizes every upload.** Before the file reaches the server, the browser converts:
+  - images to **WebP** (SVG is never touched; WebP and AVIF stay as they are);
+  - videos to **WebM VP9** (with transparency when the original has it);
+  - audio to **Ogg Opus**.
+  Only the optimized version is stored. If the uploader's browser cannot convert, the original is uploaded and the GM converts it later, in the background.
+- **Optimizes the media the world already has, your way.** The GM's client converts the media the world uses and points scenes, actors, journals, playlists and so on to the new copies. Three modes: **Automatic** (converts everything gradually, without asking), **Review first** (the default: lists what would be converted and only touches what you approve, in the dashboard's Media tab) and **Don't optimize**. The optimization **never touches the originals**, and any swap can be undone from the dashboard. Only the Cleanup (optional, in the dashboard) empties originals, and it cannot be undone.
+- **Keeps the resolution by default.** Only the format and the quality change. Downsizing is optional.
+- **Coordinates the network.** The GM shares the bandwidth between players, limits simultaneous downloads (useful on free tunnels) and makes players who join at the same time load the scene one at a time.
+- **Preloads on its own during idle time.** When nobody is downloading anything, players fetch ahead what they will likely need, from most to least likely: the scenes the players and the GM are viewing, the rest of the active scene and its playlist, whatever is playing, the neighbouring scenes in the navigation bar and in the folder, teleport destinations, then the rest of the navigation bar, the player characters' sheets and, finally, every other scene, playlist and journal the players can see. You don't have to mark anything; marking a scene (right-click in the Scenes tab) only moves it to the front.
+- **Takes advantage of a CDN** (such as Cloudflare) when there is one: it detects it on its own and allows more bandwidth.
+- **Shares files between players (P2P).** A player who already has an optimized file can send it straight to the others, saving the host's upload. Every file is checked by hash before it is used.
+- **Local cache** with a Service Worker: optimized files are kept in the browser and never downloaded again. Other media (which can change) is kept too, but checked against the server before use, at most every 30 seconds.
 
-## Instalação
+## Installation
 
-1. Instale e ative o módulo **libWrapper** (obrigatório).
-2. No Foundry, em *Módulos adicionais → Instalar módulo*, procure **Optimal Foundry** ou cole a URL do manifesto:
+1. Install and enable the **libWrapper** module (required).
+2. In Foundry, under *Add-on Modules → Install Module*, search for **Optimal Foundry** or paste the manifest URL:
    `https://github.com/Jpkovas/optimal-foundry/releases/latest/download/module.json`
-3. Ative o módulo no mundo.
-4. Entre como mestre: a tela de boas-vindas aparece para você escolher como o módulo funciona. O painel completo fica em *Configurações → Configurar opções → Optimal Foundry → Abrir painel*.
+3. Enable the module in your world.
+4. Log in as the GM: the welcome screen appears so you can choose how the module works. The full dashboard is under *Game Settings → Configure Settings → Optimal Foundry → Open dashboard*.
 
-Navegadores dos jogadores: Chrome, Edge ou Firefox atualizados. O cache local e o P2P exigem **HTTPS** (ou acesso pelo `localhost`); em `http://IP:30000` eles ficam desligados, e o resto funciona normalmente.
+Player browsers: an up-to-date Chrome, Edge or Firefox. The local cache and P2P require **HTTPS** (or access through `localhost`); on `http://IP:30000` they stay off, and everything else works normally.
 
-## Boas-vindas
+The interface is available in English and Brazilian Portuguese.
 
-Na primeira vez que um mestre entra no mundo com o módulo ativo, aparece uma tela para escolher como ele funciona: a qualidade dos arquivos (os mesmos presets das configurações), o que fazer com os arquivos que o mundo já tem (revisar antes, automático ou não mexer), se os envios novos já sobem leves, o pré-carregamento automático, o P2P, a velocidade de upload de quem hospeda e o painel flutuante. **Enquanto ninguém concluir essa tela, nenhum arquivo existente é convertido**; o pré-carregamento e o P2P já funcionam com o padrão. *Agora não* fecha a tela, que volta na próxima entrada. Dá para abrir de novo pelo botão *Boas-vindas* nas configurações do módulo.
+## Welcome screen
 
-## Painel flutuante (só o mestre)
+The first time a GM enters the world with the module enabled, a screen appears to choose how it works: the file quality (the same presets as in the settings), what to do with the files the world already has (review first, automatic or leave them), whether new uploads are optimized before they go up, automatic preloading, P2P, the host's upload speed and the floating panel. **Until someone completes this screen, no existing file is converted**; preloading and P2P already run with their defaults. *Not now* closes the screen, which comes back the next time you log in. You can reopen it with the *Welcome* button in the module's settings.
 
-Uma caixinha sobre o mapa que mostra, a cada 2 segundos:
+## Floating panel (GM only)
 
-- o que está acontecendo com os arquivos (convertendo qual arquivo e quanto falta, quantos esperam sua aprovação, pausado, tudo em dia);
-- cada jogador conectado, com uma barra de quanto ele já tem do que vem a seguir (as cenas que alguém está vendo, a cena ativa, as vizinhas e o que está tocando) e se está entrando na cena ou baixando agora; passe o mouse para ver os detalhes;
-- a fila do pré-carregamento (agora, prováveis, depois) e o P2P.
+A small box over the map that shows, every 2 seconds:
 
-Arraste pela barra de título para colocar onde quiser; a posição fica guardada neste navegador. A seta recolhe tudo numa linha só: o ícone dos arquivos com o progresso ou quantos esperam aprovação, uma bolinha colorida por jogador (verde pronto, azul baixando, laranja entrando ou ainda baixando o que vem, contorno quando não há informação) e as conexões P2P. O ícone ao lado da seta abre o painel completo e o X esconde. Ele volta pelo botão de medidor na barra de **Tokens**, à esquerda. Jogadores nunca veem.
+- what is happening with the files (which file is being converted and how much is left, how many are waiting for your approval, paused, all up to date);
+- each connected player, with a bar for how much they already have of what comes next (the scenes someone is viewing, the active scene, its neighbours and whatever is playing) and whether they are joining the scene or downloading right now; hover for details;
+- the preload queue (now, likely, later) and P2P.
 
-## O painel
+Drag it by its title bar to put it wherever you like; the position is remembered in this browser. The arrow collapses everything into a single line: the files icon with the progress or how many files are waiting for approval, one colored dot per player (green ready, blue downloading, orange joining or still downloading what comes next, an outline when there is no information) and the P2P connections. The icon next to the arrow opens the full dashboard and the X hides the panel. It comes back with the gauge button in the **Tokens** controls, on the left. Players never see it.
 
-Só o mestre abre. Atualiza a cada 2 segundos.
+## The dashboard
 
-- **Mídia:** no modo *Revisar antes*, primeiro a lista do que **espera sua aprovação**, com onde cada arquivo é usado e um botão para ver a imagem ou o vídeo; marque e escolha *Otimizar marcados*, *Otimizar todos* ou *Deixar como está* (esses não aparecem mais; *Tentar de novo* na lista de arquivos traz de volta). Depois, uma tabela com **tudo o que o mundo usa**, separada por origem (pasta do mundo, módulos, sistema, ícones e sons do Foundry, outras pastas) e pelo que aconteceu com cada arquivo (otimizado, já leve, na fila, esperando você, pulado, com falha), mais o que não é lido e por quê (links externos, SVG, compêndios de módulos). Depois, quanto já foi otimizado e economizado, o que o navegador consegue converter, o andamento da otimização do acervo (varrer, iniciar, pausar, desfazer tudo) e a lista de todos os arquivos, com filtro e o motivo de cada um pulado ou com falha. Cada arquivo otimizado pode voltar ao original individualmente; arquivos com falha ou pulados podem ser tentados de novo, um a um ou a lista filtrada inteira, e arquivos restaurados podem ser otimizados de novo sem converter outra vez.
-- **Rede:** perfil em uso, limites, resultado da detecção de CDN (e quem mediu) e uma tabela por jogador: downloads em andamento, velocidade, cena pronta, quanto do que vem a seguir ele já tem, pré-carregamento, P2P e a posição na fila de entrada. Jogadores sem notícia recente aparecem apagados.
-- **P2P:** estado do Service Worker (versão, aviso de cópia desatualizada, armazenamento persistente) e do cache, pares conectados, quanto foi enviado e recebido e a última falha de conexão.
-- **Pré-carregamento:** a previsão automática, com o que está na fila, quando (agora, provável, nesta sessão, depois) e por quê; as cenas que você quer passar na frente (opcional); e as pastas e playlists que entram sempre ou nunca.
-- **Limpeza:** esvazia os originais que já foram substituídos (veja abaixo).
+Only the GM can open it. It refreshes every 2 seconds.
 
-Iniciar e Pausar ficam gravados: depois de pausar, a otimização do acervo não volta sozinha ao recarregar (aprovar arquivos na revisão também retoma). Ela também espera enquanto algum jogador está entrando ou carregando uma cena.
+- **Media:** in *Review first* mode, first the list of what is **waiting for your approval**, with where each file is used and a button to view the image or video; check files and choose *Optimize checked*, *Optimize all* or *Leave as it is* (those no longer show up; *Retry* in the file list brings them back). Then a table of **everything the world uses**, split by origin (world folder, modules, system, Foundry's icons and sounds, other folders) and by what happened to each file (optimized, already light, queued, waiting for you, skipped, failed), plus what is not read and why (external links, SVG, module compendiums). Then how much has been optimized and saved, what the browser can convert, the progress of optimizing existing media (scan, start, pause, undo all) and the list of every file, with a filter and the reason each one was skipped or failed. Each optimized file can go back to the original individually; failed or skipped files can be retried, one by one or the whole filtered list, and restored files can be optimized again without converting them a second time.
+- **Network:** the profile in use, limits, the CDN detection result (and who measured it) and a table per player: downloads in progress, speed, scene ready, how much of what comes next they already have, preloading, P2P and their position in the join queue. Players with no recent status are greyed out.
+- **P2P:** Service Worker state (version, outdated-copy warning, persistent storage) and cache state, connected peers, how much was sent and received and the last connection failure.
+- **Preloading:** the automatic prediction, with what is queued, when (now, likely, this session, later) and why; the scenes you want to move to the front (optional); and the folders and playlists that are always or never preloaded.
+- **Cleanup:** empties originals that have already been replaced (see below).
 
-Na aba **Cenas**, o botão direito em uma cena mostra *Marcar como próxima cena* / *Desmarcar*. Cenas marcadas ganham um pequeno ícone azul.
+Start and Pause are remembered: after pausing, optimizing existing media does not resume on its own after a reload (approving files in the review also resumes it). It also waits while a player is joining or loading a scene.
 
-## Limpeza dos originais
+In the **Scenes** tab, right-clicking a scene shows *Mark as next scene* / *Unmark*. Marked scenes get a small blue icon.
 
-Depois que o acervo está convertido, os originais continuam no disco. O Foundry não deixa módulos apagarem arquivos, mas deixa sobrescrever imagens, vídeos e sons. Por isso a aba **Limpeza** do painel **esvazia** os originais: cada um continua na pasta com o mesmo nome, mas fica com 0 bytes e para de ocupar espaço. Só aparecem os que já podem ser esvaziados:
+## Cleaning up originals
 
-- só arquivos **dentro da pasta deste mundo** (`worlds/<mundo>/`); arquivos em pastas compartilhadas do Data nunca entram, porque outros mundos podem usá-los;
-- já convertidos e que nada no mundo menciona mais: cenas, fichas, diários, playlists, macros, mensagens do chat, configurações e compêndios do mundo (qualquer menção ao arquivo, mesmo num texto, já basta para ele ficar);
-- com a versão otimizada presente e do tamanho registrado.
+Once existing media is converted, the originals stay on disk. Foundry does not let modules delete files, but it does let them overwrite images, videos and sounds. So the dashboard's **Cleanup** tab **empties** the originals: each one stays in its folder under the same name, but becomes 0 bytes and stops taking up space. Only files that can already be emptied are listed:
 
-Clique em **Analisar**, marque os arquivos (ou use **Esvaziar todos**) e confirme. Tudo acontece pelo navegador, sem terminal, em qualquer servidor, na sessão do mestre que coordena a otimização. Enquanto a limpeza roda, *Desfazer* fica bloqueado. Antes de esvaziar cada arquivo, o módulo confere de novo que nada voltou a usá-lo, que ele não mudou desde a conversão e que a versão otimizada baixa inteira, com o tamanho e o SHA-256 registrados. O que não passa fica como está e aparece em *Mantidos*, com o motivo.
+- only files **inside this world's folder** (`worlds/<world>/`); files in shared Data folders are never included, because other worlds may use them;
+- already converted and no longer mentioned anywhere in the world: scenes, sheets, journals, playlists, macros, chat messages, settings and world compendiums (any mention of the file, even in text, is enough to keep it);
+- with the optimized version present and at the recorded size.
 
-**Outros mundos não são verificados.** Se outro mundo usa arquivos da pasta deste, não esvazie esses arquivos.
+Click **Analyze**, check the files (or use **Empty all**) and confirm. Everything happens in the browser, with no terminal, on any server, in the GM session that coordinates the optimization. While the cleanup runs, *Undo* is blocked. Before emptying each file, the module checks again that nothing uses it anymore, that it has not changed since the conversion and that the optimized version downloads in full, with the recorded size and SHA-256. Anything that fails a check stays as it is and shows up under *Kept*, with the reason.
 
-**Não tem volta:** o conteúdo do original some. As cenas, fichas e playlists continuam com as versões otimizadas, e *Desfazer* deixa de valer para esses arquivos. Se algum documento voltar a apontar para um original esvaziado (por exemplo, colado de um backup), o módulo troca a referência pela versão otimizada, como faz com qualquer arquivo já convertido.
+**Other worlds are not checked.** If another world uses files from this world's folder, do not empty those files.
 
-## Minha conexão (para todos)
+**This cannot be undone:** the original's content is gone. Scenes, sheets and playlists keep using the optimized versions, and *Undo* no longer applies to those files. If a document points to an emptied original again (pasted from a backup, for example), the module swaps the reference for the optimized version, as it does with any file already converted.
 
-Cada jogador (e o mestre) pode abrir **Minha conexão** pelo ícone de wi-fi na lista de jogadores (ao lado da latência e do FPS) ou em *Configurar opções → Optimal Foundry*. A janela mostra o que vale para **este aparelho**: quanto do cache local está em uso, se o P2P está ligado (pares, enviado e recebido), o andamento do pré-carregamento, o CDN e o Service Worker. Ali dá para mudar as quatro opções deste aparelho (veja Configurações) e **limpar o cache deste aparelho** (os arquivos são baixados de novo quando precisar).
+## My connection (for everyone)
 
-## Configurações
+Every player (and the GM) can open **My connection** from the wifi icon in the player list (next to latency and FPS) or under *Configure Settings → Optimal Foundry*. The window shows what applies to **this device**: how much of the local cache is in use, whether P2P is on (peers, sent and received), preloading progress, the CDN and the Service Worker. There you can change this device's four options (see Settings) and **clear this device's cache** (files are downloaded again when needed).
 
-Em *Configurar opções → Optimal Foundry*, o mestre vê três botões: **Configurações**, **Painel** e **Minha conexão**. Os jogadores veem só **Minha conexão**: tudo o que o módulo faz com os arquivos e com a rede do mundo é decidido pelo mestre e vale para todos, inclusive para os uploads dos jogadores.
+## Settings
 
-A janela **Configurações** começa pelos presets. Clicar num preset só preenche o formulário; nada muda até clicar em **Salvar**:
+Under *Configure Settings → Optimal Foundry*, the GM sees three buttons: **Settings**, **Dashboard** and **My connection**. Players only see **My connection**: everything the module does with the world's files and network is decided by the GM and applies to everyone, including players' uploads.
 
-| Preset | Para quem |
+The **Settings** window starts with the presets. Clicking a preset only fills in the form; nothing changes until you click **Save**:
+
+| Preset | For whom |
 |---|---|
-| **Recomendado** | Quase todo mundo: qualidade quase igual à original, arquivos bem menores, sem mudar o tamanho das imagens. |
-| **Economia máxima** | Internet fraca ou muitos jogadores: qualidade um pouco menor, imagens limitadas a 4096 px, vídeos a 720p e sem som. |
-| **Qualidade máxima** | Internet boa e exigência de detalhe: comprime pouco. |
-| **Não mexer nos arquivos** | Quem não quer nenhum arquivo convertido: usa só o pré-carregamento e o compartilhamento entre jogadores. |
+| **Recommended** | Almost everyone: quality nearly identical to the original, much smaller files, image dimensions unchanged. |
+| **Maximum saving** | Slow internet or many players: slightly lower quality, images capped at 4096 px, videos at 720p and without sound. |
+| **Maximum quality** | Good internet and high demands on detail: light compression. |
+| **Leave files alone** | Anyone who does not want any file converted: uses only preloading and sharing between players. |
 
-As explicações de cada opção aparecem ao passar o mouse no ponto de interrogação ao lado do nome. Embaixo ficam **O essencial**, com oito opções explicadas em linguagem simples (otimizar arquivos, o que for enviado, o que fazer com os arquivos que o mundo já tem, manter o tamanho, como os jogadores chegam até você, a velocidade de upload da sua internet, baixar as próximas cenas antes e compartilhar entre jogadores), e **Avançado**, fechado por padrão, com os ajustes técnicos agrupados em Arquivos, Rede e carregamento e Compartilhamento e cache. **Valores padrão** volta tudo ao recomendado.
+Each option's explanation appears when you hover the question mark next to its name. Below come **Essentials**, with eight options explained in plain language (optimize files, what gets uploaded, what to do with the files the world already has, keep dimensions, how players reach you, your internet upload speed, download upcoming scenes ahead of time and sharing between players), and **Advanced**, collapsed by default, with the technical settings grouped into Files, Network and loading, and Sharing and cache. **Default values** resets everything to the recommended values.
 
-Duas observações:
-- *Como os jogadores chegam até você* em **Automático** descobre sozinho se há um CDN. Os ajustes finos de rede só valem em **Personalizado** e ficam apagados nos outros perfis.
-- Mudar *Otimizar arquivos*, *Compartilhar entre jogadores* ou *Guardar arquivos no navegador* pede para recarregar o Foundry de todos.
+Two notes:
+- *How players reach you* set to **Automatic** detects on its own whether there is a CDN. The fine network settings only apply in **Custom** and are greyed out in the other profiles.
+- Changing *Optimize files*, *Players share files with each other* or *Keep files in the browser* asks everyone to reload Foundry.
 
-Em **Minha conexão**, cada pessoa ajusta só o próprio aparelho: baixar as próximas cenas neste aparelho, compartilhar arquivos com os colegas, velocidade máxima de envio aos colegas e espaço para guardar arquivos.
-## Como o pré-carregamento divide a banda
+In **My connection**, each person adjusts only their own device: download upcoming scenes on this device, share files with the other players, fastest sending to other players and space for stored files.
 
-- O mestre monta uma fila única, em quatro níveis: **agora** (cenas marcadas, a cena que o mestre está preparando e as que os jogadores estão vendo), **provável** (o resto da cena ativa e a playlist dela, o que está tocando, as vizinhas na barra de navegação e na pasta, os destinos de teleporte e o que está em *Sempre*), **nesta sessão** (o resto da barra de navegação, as playlists das cenas acima e as imagens dos personagens dos jogadores) e **depois** (todo o resto do mundo, inclusive cenas e playlists escondidas, que o mestre pode ativar a qualquer momento). A fila se refaz sozinha quando a cena ativa muda, quando alguém troca de cena (conferido a cada 3 segundos) ou quando algo é editado.
-- A fila cobre tudo, mas o ritmo é controlado: a *Banda para pré-carregamento*, o P2P entre jogadores e o espaço no navegador de cada um decidem até onde ela vai. Um navegador quase cheio para de baixar o nível *depois*.
-- Quando um jogador fica ocioso, pede ao mestre um lote de até 8 arquivos. O mestre já desconta o lote do orçamento de upload (*Banda para pré-carregamento*) antes de responder; arquivos grandes saem sozinhos. Não há um pedido por arquivo.
-- Ninguém recebe lote enquanto outro jogador está entrando ou carregando uma cena. Quando um jogador abre uma cena, o pré-carregamento dele para na hora (menos os downloads já passados da metade).
-- Com P2P e sem CDN, cada arquivo grande vai do servidor para um jogador só; os outros pegam dele.
-- Navegadores que acessam pelo `localhost` (normalmente o mestre no servidor) não pré-carregam: não economizaria nada.
+## How preloading shares the bandwidth
 
-## Nomes dos arquivos otimizados
+- The GM builds a single queue with four tiers: **now** (marked scenes, the scene the GM is preparing and the scenes players are viewing), **likely** (the rest of the active scene and its playlist, whatever is playing, the neighbours in the navigation bar and in the folder, teleport destinations and anything in *Always preload*), **this session** (the rest of the navigation bar, the playlists of the scenes above and the player characters' images) and **later** (everything else in the world, including hidden scenes and playlists, which the GM can activate at any time). The queue rebuilds itself when the active scene changes, when someone switches scenes (checked every 3 seconds) or when something is edited.
+- The queue covers everything, but the pace is controlled: *Share of upload for downloading ahead*, P2P between players and the space in each player's browser decide how far it goes. A browser that is almost full stops downloading the *later* tier.
+- When a player is idle, they ask the GM for a batch of up to 8 files. The GM deducts the batch from the upload budget (*Share of upload for downloading ahead*) before answering; large files go out on their own. There is no request per file.
+- Nobody gets a batch while another player is joining or loading a scene. When a player opens a scene, their preloading stops at once (except downloads already past the halfway mark).
+- With P2P and no CDN, each large file goes from the server to a single player; the others get it from that player.
+- Browsers that access the server through `localhost` (usually the GM on the server machine) do not preload: it would save nothing.
 
-Cada cópia otimizada se chama `<nome>.of-<8 caracteres do hash>.<extensão>`, por exemplo `taverna.of-3fa9c21b.webp`. Ela fica na mesma pasta do original. Originais dentro de `modules/` ou `systems/` ganham a cópia em `optimal-foundry/<pasta original>/`, na raiz de Data.
+## Optimized file names
 
-Como o nome muda sempre que o conteúdo muda, esses arquivos podem ficar em cache por um ano sem risco de mostrar versão velha. É isso que as regras de CDN abaixo aproveitam.
+Each optimized copy is named `<name>.of-<8 characters of the hash>.<extension>`, for example `tavern.of-3fa9c21b.webp`. It sits in the same folder as the original. Originals inside `modules/` or `systems/` get their copy under `optimal-foundry/<original folder>/`, at the Data root.
 
-## Receita para quem tem domínio no Cloudflare
+Since the name changes whenever the content changes, these files can stay cached for a year with no risk of showing a stale version. That is what the CDN rules below rely on.
 
-Exemplo com o endereço `rpg.seudominio.com`; troque pelo seu.
+## Recipe for owners of a domain on Cloudflare
 
-### 1. Túnel nomeado
+Example with the address `rpg.yourdomain.com`; replace it with yours.
+
+### 1. Named tunnel
 
 ```sh
-cloudflared tunnel login                      # uma vez, gera ~/.cloudflared/cert.pem
-cloudflared tunnel create foundry             # cria o túnel e ~/.cloudflared/<UUID>.json
-cloudflared tunnel route dns foundry rpg.seudominio.com
+cloudflared tunnel login                      # once, creates ~/.cloudflared/cert.pem
+cloudflared tunnel create foundry             # creates the tunnel and ~/.cloudflared/<UUID>.json
+cloudflared tunnel route dns foundry rpg.yourdomain.com
 ```
 
 `~/.cloudflared/config.yml`:
 
 ```yaml
 tunnel: <UUID>
-credentials-file: /caminho/para/.cloudflared/<UUID>.json
+credentials-file: /path/to/.cloudflared/<UUID>.json
 ingress:
-  - hostname: rpg.seudominio.com
+  - hostname: rpg.yourdomain.com
     service: http://localhost:30000
     originRequest:
       connectTimeout: 10s
@@ -135,86 +138,86 @@ ingress:
   - service: http_status:404
 ```
 
-Rode com `cloudflared tunnel run foundry` ou instale como serviço (`cloudflared service install`).
+Run it with `cloudflared tunnel run foundry` or install it as a service (`cloudflared service install`).
 
-No `options.json` do Foundry: `"hostname": "rpg.seudominio.com"`, `"proxySSL": true`, `"proxyPort": 443` e `"upnp": false`.
+In Foundry's `options.json`: `"hostname": "rpg.yourdomain.com"`, `"proxySSL": true`, `"proxyPort": 443` and `"upnp": false`.
 
-### 2. Regras de cache (Caching → Cache Rules)
+### 2. Cache rules (Caching → Cache Rules)
 
-O Foundry manda `Cache-Control: no-cache` em tudo, então o Cloudflare só guarda os arquivos se uma regra mandar.
+Foundry sends `Cache-Control: no-cache` on everything, so Cloudflare only stores files when a rule tells it to.
 
-**Regra 1: arquivos otimizados (imutáveis).**
-- Quando: `(http.host eq "rpg.seudominio.com" and http.request.uri.path contains ".of-" and http.request.uri.path.extension in {"webp" "webm" "ogg"})`
-- Cache: *Eligible for cache*. Edge TTL: *Ignore cache-control header*, 1 ano. Browser TTL: *Override origin*, 1 ano.
+**Rule 1: optimized files (immutable).**
+- When: `(http.host eq "rpg.yourdomain.com" and http.request.uri.path contains ".of-" and http.request.uri.path.extension in {"webp" "webm" "ogg"})`
+- Cache: *Eligible for cache*. Edge TTL: *Ignore cache-control header*, 1 year. Browser TTL: *Override origin*, 1 year.
 
-**Regra 2: outras mídias do mundo (podem mudar).**
-- Quando: `(http.host eq "rpg.seudominio.com" and not (http.request.uri.path contains ".of-") and http.request.uri.path.extension in {"png" "jpg" "jpeg" "webp" "gif" "svg" "mp3" "ogg" "wav" "m4a" "webm" "mp4"})`
-- Cache: *Eligible for cache*. Edge TTL: 2 horas. Browser TTL: *Respect origin*.
-- Atenção: o Foundry sobrescreve em silêncio um arquivo de mídia enviado com o mesmo nome. Com esta regra, a versão antiga pode aparecer por até 2 horas. Se isso incomodar, use um TTL menor ou não crie esta regra.
+**Rule 2: other world media (can change).**
+- When: `(http.host eq "rpg.yourdomain.com" and not (http.request.uri.path contains ".of-") and http.request.uri.path.extension in {"png" "jpg" "jpeg" "webp" "gif" "svg" "mp3" "ogg" "wav" "m4a" "webm" "mp4"})`
+- Cache: *Eligible for cache*. Edge TTL: 2 hours. Browser TTL: *Respect origin*.
+- Note: Foundry silently overwrites a media file uploaded under the same name. With this rule, the old version may show for up to 2 hours. If that bothers you, use a shorter TTL or skip this rule.
 
-Confira as duas no simulador de regras do Cloudflare antes de jogar.
+Check both in Cloudflare's rule tester before playing.
 
-### 3. Cabeçalho do Service Worker (Rules → Transform Rules → Modify Response Header)
+### 3. Service Worker header (Rules → Transform Rules → Modify Response Header)
 
-- Quando: `http.request.uri.path eq "/modules/optimal-foundry/sw.js"`
-- Ação: *Set static*, cabeçalho `Service-Worker-Allowed`, valor `/`.
+- When: `http.request.uri.path eq "/modules/optimal-foundry/sw.js"`
+- Action: *Set static*, header `Service-Worker-Allowed`, value `/`.
 
-Sem esse cabeçalho, o navegador não deixa o Service Worker do módulo cuidar do site inteiro. Se o Foundry usa um prefixo de rota (`routePrefix`), use esse prefixo no caminho e no valor (por exemplo `/rpg/modules/optimal-foundry/sw.js` e `/rpg/`).
+Without this header, the browser does not let the module's Service Worker handle the whole site. If Foundry uses a route prefix (`routePrefix`), use that prefix in the path and in the value (for example `/rpg/modules/optimal-foundry/sw.js` and `/rpg/`).
 
-### 4. Arquivos do Foundry e dos módulos (opcional, recomendado)
+### 4. Foundry and module files (optional, recommended)
 
-O Service Worker não guarda os arquivos de código do Foundry. Uma regra de cache no Cloudflare tira esse peso do upload de quem hospeda, principalmente quando todos entram ao mesmo tempo.
+The Service Worker does not store Foundry's code files. A cache rule on Cloudflare takes that load off the host's upload, especially when everyone joins at the same time.
 
-- Quando: `(http.host eq "rpg.seudominio.com" and (starts_with(http.request.uri.path, "/scripts/") or starts_with(http.request.uri.path, "/css/") or starts_with(http.request.uri.path, "/lang/") or starts_with(http.request.uri.path, "/fonts/") or starts_with(http.request.uri.path, "/modules/") or starts_with(http.request.uri.path, "/systems/")) and http.request.uri.path.extension in {"js" "mjs" "css" "json" "hbs" "html" "woff" "woff2" "ttf" "otf"} and not ends_with(http.request.uri.path, "/sw.js"))`
-- Cache: *Eligible for cache*. Edge TTL: *Ignore cache-control header*, 1 dia. Browser TTL: *Respect origin* (o navegador continua conferindo, mas quem responde é o Cloudflare).
-- O Foundry não põe versão nesses endereços. **Depois de atualizar o Foundry, um sistema ou um módulo, faça *Caching → Configuration → Purge Everything*** (ou espere um dia). O `sw.js` fica de fora para que uma versão nova do módulo chegue logo.
+- When: `(http.host eq "rpg.yourdomain.com" and (starts_with(http.request.uri.path, "/scripts/") or starts_with(http.request.uri.path, "/css/") or starts_with(http.request.uri.path, "/lang/") or starts_with(http.request.uri.path, "/fonts/") or starts_with(http.request.uri.path, "/modules/") or starts_with(http.request.uri.path, "/systems/")) and http.request.uri.path.extension in {"js" "mjs" "css" "json" "hbs" "html" "woff" "woff2" "ttf" "otf"} and not ends_with(http.request.uri.path, "/sw.js"))`
+- Cache: *Eligible for cache*. Edge TTL: *Ignore cache-control header*, 1 day. Browser TTL: *Respect origin* (the browser keeps checking, but Cloudflare answers).
+- Foundry does not version these addresses. **After updating Foundry, a system or a module, run *Caching → Configuration → Purge Everything*** (or wait a day). `sw.js` is left out so that a new version of the module arrives quickly.
 
-### Termos do Cloudflare
+### Cloudflare's terms
 
-Nos planos Free, Pro e Business, os termos do CDN do Cloudflare pedem serviços pagos (Stream, R2 etc.) para servir vídeo ou uma parte desproporcional de arquivos grandes, e o Cloudflare pode limitar a conta se isso acontecer. Um grupo pequeno de jogo dificilmente chama atenção, mas o risco existe. Se preferir não correr esse risco, tire `webm` e `mp4` das regras acima.
+On the Free, Pro and Business plans, Cloudflare's CDN terms require paid services (Stream, R2 and so on) to serve video or a disproportionate share of large files, and Cloudflare may limit the account if that happens. A small gaming group is unlikely to draw attention, but the risk exists. If you would rather not take it, remove `webm` and `mp4` from the rules above.
 
-## Receita sem domínio (sem CDN, sem cabeçalho)
+## Recipe without a domain (no CDN, no header)
 
-Funciona com túnel rápido, IP direto com HTTPS ou rede local com HTTPS.
+Works with a quick tunnel, a direct IP with HTTPS or a local network with HTTPS.
 
-1. Copie o arquivo `Data/modules/optimal-foundry/sw.js` para a raiz de Data com o nome **`optimal-foundry-sw.js`** (fica em `Data/optimal-foundry-sw.js`).
-2. Recarregue o mundo.
+1. Copy the file `Data/modules/optimal-foundry/sw.js` to the Data root under the name **`optimal-foundry-sw.js`** (it ends up at `Data/optimal-foundry-sw.js`).
+2. Reload the world.
 
-O Foundry serve esse arquivo em `/optimal-foundry-sw.js`, um caminho que pode cuidar do site inteiro sem cabeçalho especial. O módulo tenta esse endereço primeiro; se não existir, tenta o arquivo do módulo; se nenhum funcionar, segue sem cache local (o resto do módulo continua funcionando). Ao atualizar o módulo, copie o `sw.js` de novo.
+Foundry serves that file at `/optimal-foundry-sw.js`, a path that can handle the whole site without a special header. The module tries that address first; if it does not exist, it tries the module's file; if neither works, it carries on without the local cache (the rest of the module keeps working). When you update the module, copy `sw.js` again.
 
-Sem CDN, o perfil automático fica em *Túnel rápido*: o mestre segura a banda e o P2P alivia o upload de quem hospeda.
+Without a CDN, the automatic profile stays on *Tunnel without CDN*: the GM holds back the bandwidth and P2P relieves the host's upload.
 
-Ao atualizar o módulo, se o painel mostrar o Service Worker como **desatualizado**, a cópia em `Data/optimal-foundry-sw.js` ficou velha: copie o `sw.js` de novo.
+After updating the module, if the dashboard shows the Service Worker as **outdated**, the copy in `Data/optimal-foundry-sw.js` is stale: copy `sw.js` again.
 
-## Testar com vários jogadores no mesmo computador
+## Testing with several players on one computer
 
-Cada endereço (`http://localhost:30000`, `http://127.0.0.1:30000`, `http://[::1]:30000`, o domínio público) tem seus próprios cookies, cache e Service Worker, então dá para abrir um jogador em cada um no mesmo Chrome. Como endereços locais ficam fora do P2P de propósito, ative o P2P para o teste no console de cada aba local:
+Each address (`http://localhost:30000`, `http://127.0.0.1:30000`, `http://[::1]:30000`, the public domain) has its own cookies, cache and Service Worker, so you can open one player on each in the same Chrome. Since local addresses are deliberately kept out of P2P, enable P2P for the test in the console of each local tab:
 
 ```js
-localStorage["optimal-foundry.debug.allowLocalP2P"] = "1"; // depois recarregue; remova com localStorage.removeItem(...)
+localStorage["optimal-foundry.debug.allowLocalP2P"] = "1"; // then reload; remove with localStorage.removeItem(...)
 ```
 
-Se os pares do mesmo computador nunca conectarem, abra o Chrome com `--disable-features=WebRtcHideLocalIpsWithMdns`. A aba P2P do painel mostra a última falha com os tipos de candidato ICE.
+If peers on the same computer never connect, start Chrome with `--disable-features=WebRtcHideLocalIpsWithMdns`. The dashboard's P2P tab shows the last failure with the ICE candidate types.
 
-## Limitações
+## Limitations
 
-- **O módulo não apaga arquivos.** O Foundry não oferece forma de um módulo apagar arquivos: a Limpeza só consegue esvaziar os originais (0 bytes, mesmo nome), então os nomes continuam aparecendo nas pastas. Desfazer só re-aponta os documentos; as cópias otimizadas também ficam. Um arquivo desfeito fica marcado como restaurado e não é otimizado de novo sozinho; use *Otimizar de novo* no painel para mudar isso.
-- **Uploads pelo túnel do Cloudflare** têm limite de 100 MB por arquivo nos planos Free e Pro. Arquivos maiores mesmo depois de convertidos precisam ser enviados pelo `localhost` de quem hospeda.
-- **GIFs animados** enviados ficam como estão (não dá para saber onde serão usados). No acervo, viram vídeo só quando aparecem apenas em tiles e tokens.
-- **Imagens com mais de 16383 px** de lado são puladas quando a resolução é mantida (limite do WebP).
-- **Safari não é suportado** para converter (não gera WebP de verdade). Jogadores no Safari ainda jogam, mas os uploads deles são convertidos pelo mestre.
-- **HTTP sem HTTPS:** cache local e P2P desligam sozinhos.
-- **P2P** usa só STUN por padrão. Em redes muito fechadas a conexão direta pode falhar; nesse caso o arquivo vem do servidor normalmente. Um servidor TURN pode ser adicionado em *Servidores ICE*. A conexão direta deixa os outros jogadores do mundo verem o endereço IP do seu navegador; desligar o P2P evita isso. Navegadores que acessam o servidor pelo `localhost` ou pela rede local (normalmente o mestre no computador do servidor) não participam do P2P, porque o upload deles dividiria o link do servidor.
-- **Uma sessão coordena.** A otimização do acervo, a fila de pré-carregamento, o rastreador do P2P e a fila de entrada rodam só em uma sessão do mestre ativo: se ele abrir duas abas, ou o app e o navegador, só a mais antiga coordena e a outra fica passiva. Se a sessão que coordena fechar, a outra assume na hora (ou em até 75 segundos se ela travar). Tudo isso só funciona com o mestre conectado; é melhor deixá-lo conectado pelo `localhost`, longe dos limites do túnel.
-- **Arquivo trocado com o mesmo nome.** Se um original que ainda é usado em algum documento for substituído no servidor por outro arquivo com o mesmo nome, a otimização percebe pela assinatura do arquivo (ETag) e converte de novo, em vez de apontar para a cópia antiga.
+- **The module does not delete files.** Foundry gives modules no way to delete files: the Cleanup can only empty originals (0 bytes, same name), so their names still show up in the folders. Undo only re-points documents; the optimized copies stay as well. An undone file is marked as restored and is not optimized again on its own; use *Optimize again* in the dashboard to change that.
+- **Uploads through a Cloudflare tunnel** are limited to 100 MB per file on the Free and Pro plans. Files that are still larger after conversion must be uploaded through the host's `localhost`.
+- **Animated GIFs** that are uploaded stay as they are (there is no way to know where they will be used). In existing media, they become video only when they appear exclusively in tiles and tokens.
+- **Images larger than 16383 px** on a side are skipped when the resolution is kept (a WebP limit).
+- **Safari is not supported** for converting (it does not produce real WebP). Players on Safari can still play, but their uploads are converted by the GM.
+- **HTTP without HTTPS:** the local cache and P2P turn themselves off.
+- **P2P** uses only STUN by default. On very locked-down networks the direct connection may fail; in that case the file comes from the server as usual. A TURN server can be added under *Connection servers (STUN/TURN)*. The direct connection lets the other players in the world see your browser's IP address; turning P2P off avoids that. Browsers that reach the server through `localhost` or the local network (usually the GM on the server machine) do not take part in P2P, because their upload would share the server's link.
+- **One session coordinates.** Optimizing existing media, the preload queue, the P2P tracker and the join queue run in only one session of the active GM: if they open two tabs, or the app and the browser, only the oldest one coordinates and the other stays passive. If the coordinating session closes, the other takes over at once (or within 75 seconds if it freezes). All of this only works with the GM connected; it is best to keep the GM connected through `localhost`, away from the tunnel's limits.
+- **File replaced under the same name.** If an original still used by some document is replaced on the server by another file with the same name, the optimization notices from the file's signature (ETag) and converts it again, instead of pointing to the old copy.
 
-## Publicar uma versão nova (para quem mantém o módulo)
+## Publishing a new version (for maintainers)
 
-1. Suba o número em `version` no `module.json` (e o `download`, que aponta para a tag `v<versão>`), faça o commit e envie.
-2. No GitHub, crie um release com a tag `v<versão>` (por exemplo `v0.2.0`).
-3. O workflow `.github/workflows/release.yml` confere que a tag bate com o `module.json`, gera o `module.zip` só com os arquivos que o Foundry usa e anexa `module.json` e `module.zip` ao release. O link `releases/latest/download/module.json` passa a apontar para a versão nova, e quem já instalou recebe a atualização pelo Foundry.
-4. Se o segredo `FOUNDRY_RELEASE_TOKEN` estiver configurado no repositório (*Settings → Secrets and variables → Actions*), com o token da página do pacote em foundryvtt.com, o workflow também registra a versão na biblioteca oficial do Foundry.
+1. Bump `version` in `module.json` (and `download`, which points to the `v<version>` tag), commit and push.
+2. On GitHub, create a release with the tag `v<version>` (for example `v0.2.0`).
+3. The `.github/workflows/release.yml` workflow checks that the tag matches `module.json`, builds `module.zip` with only the files Foundry uses and attaches `module.json` and `module.zip` to the release. The `releases/latest/download/module.json` link then points to the new version, and existing installs get the update through Foundry.
+4. If the `FOUNDRY_RELEASE_TOKEN` secret is set in the repository (*Settings → Secrets and variables → Actions*), with the token from the package page on foundryvtt.com, the workflow also registers the version in Foundry's official package library.
 
-## Licença
+## License
 
-MIT. Inclui o Mediabunny (MPL-2.0) em `vendor/`.
+MIT. Includes Mediabunny (MPL-2.0) in `vendor/`.
