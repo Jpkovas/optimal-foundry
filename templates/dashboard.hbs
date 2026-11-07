@@ -1,0 +1,17 @@
+<header class="of-header">
+    <span class="of-pill {{header.media.cls}}" data-tooltip="{{localize "OPTIMALFOUNDRY.Dashboard.Tabs.media"}}">
+        <i class="fa-solid fa-photo-film" inert></i> {{header.media.label}}
+    </span>
+    <span class="of-pill {{header.network.cls}}" data-tooltip="{{localize "OPTIMALFOUNDRY.Dashboard.Tabs.network"}}">
+        <i class="fa-solid fa-network-wired" inert></i> {{header.network.label}}{{#if header.network.cdn}} · {{header.network.cdn}}{{/if}}
+    </span>
+    <span class="of-pill {{header.p2p.cls}}" data-tooltip="{{localize "OPTIMALFOUNDRY.Dashboard.Tabs.p2p"}}">
+        <i class="fa-solid fa-share-nodes" inert></i> {{header.p2p.label}}
+    </span>
+    <span class="of-pill {{header.sw.cls}}" data-tooltip="{{localize "OPTIMALFOUNDRY.Dashboard.P2P.ServiceWorker"}}">
+        <i class="fa-solid fa-box-archive" inert></i> {{header.sw.label}}
+    </span>
+    {{#unless apiReady}}
+    <span class="of-pill warn"><i class="fa-solid fa-triangle-exclamation" inert></i> {{localize "OPTIMALFOUNDRY.Dashboard.ApiNotReady"}}</span>
+    {{/unless}}
+</header>

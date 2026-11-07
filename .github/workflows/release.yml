@@ -1,0 +1,62 @@
+# Builds the Foundry package for a GitHub release and attaches module.json + module.zip to it.
+# With the FOUNDRY_RELEASE_TOKEN secret (from the package page on foundryvtt.com), it also registers the version
+# in Foundry's package library through the Package Release API.
+name: Release
+
+on:
+  release:
+    types: [published]
+
+permissions:
+  contents: write
+
+jobs:
+  package:
+    runs-on: ubuntu-latest
+    env:
+      TAG: ${{ github.event.release.tag_name }}
+      REPO: ${{ github.repository }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check that the tag matches module.json
+        run: |
+          version=$(jq -r .version module.json)
+          download=$(jq -r .download module.json)
+          manifest=$(jq -r .manifest module.json)
+          [ "$TAG" = "v$version" ] || { echo "::error::tag $TAG does not match module.json version $version"; exit 1; }
+          [ "$download" = "https://github.com/$REPO/releases/download/$TAG/module.zip" ] || { echo "::error::module.json download is $download"; exit 1; }
+          [ "$manifest" = "https://github.com/$REPO/releases/latest/download/module.json" ] || { echo "::error::module.json manifest is $manifest"; exit 1; }
+
+      - name: Build module.zip (only what Foundry loads)
+        run: |
+          zip -r -X module.zip module.json LICENSE README.md sw.js lang scripts styles templates vendor -x '*.DS_Store'
+          unzip -l module.zip
+
+      - name: Attach to the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release upload "$TAG" module.json module.zip --clobber
+
+      - name: Register the version in Foundry's package library
+        env:
+          FOUNDRY_RELEASE_TOKEN: ${{ secrets.FOUNDRY_RELEASE_TOKEN }}
+          NOTES: ${{ github.event.release.html_url }}
+        run: |
+          if [ -z "$FOUNDRY_RELEASE_TOKEN" ]; then
+            echo "FOUNDRY_RELEASE_TOKEN is not set: skipping the Foundry package library."
+            exit 0
+          fi
+          body=$(jq -n \
+            --arg id "$(jq -r .id module.json)" \
+            --arg version "$(jq -r .version module.json)" \
+            --arg manifest "https://github.com/$REPO/releases/download/$TAG/module.json" \
+            --arg notes "$NOTES" \
+            --arg minimum "$(jq -r .compatibility.minimum module.json)" \
+            --arg verified "$(jq -r .compatibility.verified module.json)" \
+            '{id: $id, release: {version: $version, manifest: $manifest, notes: $notes,
+              compatibility: {minimum: $minimum, verified: $verified}}}')
+          status=$(curl -sS -o response.json -w '%{http_code}' -X POST https://foundryvtt.com/_api/packages/release_version/ \
+            -H "Content-Type: application/json" -H "Authorization: $FOUNDRY_RELEASE_TOKEN" -d "$body")
+          cat response.json
+          [ "$status" = "200" ] || { echo "::error::Foundry package API answered $status"; exit 1; }

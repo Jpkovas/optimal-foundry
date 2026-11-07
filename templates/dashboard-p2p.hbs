@@ -1,0 +1,66 @@
+<section class="tab of-tab {{#if tab.active}}active{{/if}}" data-group="{{tab.group}}" data-tab="{{tab.id}}">
+    {{#with p2p}}
+    {{#unless secure}}
+    <p class="of-note warn">{{localize "OPTIMALFOUNDRY.Dashboard.P2P.Insecure"}}</p>
+    {{/unless}}
+
+    <h3 class="of-title"><i class="fa-solid fa-box-archive" inert></i> {{localize "OPTIMALFOUNDRY.Dashboard.P2P.ServiceWorker"}}</h3>
+    {{#if sw}}
+    <dl class="of-kv">
+        <dt>{{localize "OPTIMALFOUNDRY.Dashboard.P2P.Supported"}}</dt><dd>{{sw.supported}}</dd>
+        <dt>{{localize "OPTIMALFOUNDRY.Dashboard.P2P.Registered"}}</dt><dd>{{sw.registered}}</dd>
+        <dt>{{localize "OPTIMALFOUNDRY.Dashboard.P2P.Controlling"}}</dt><dd><span class="of-chip {{#if sw.isControlling}}ok{{else}}idle{{/if}}">{{sw.controlling}}</span></dd>
+        <dt>{{localize "OPTIMALFOUNDRY.Sw.Version"}}</dt><dd>{{sw.version}}{{#if sw.outdated}} <span class="of-chip bad">{{localize "OPTIMALFOUNDRY.Sw.OutdatedBadge"}}</span>{{/if}}</dd>
+        <dt>{{localize "OPTIMALFOUNDRY.Sw.Persisted"}}</dt><dd>{{sw.persisted}}</dd>
+        <dt>{{localize "OPTIMALFOUNDRY.Dashboard.P2P.Scope"}}</dt><dd><code>{{sw.scope}}</code></dd>
+        <dt>{{localize "OPTIMALFOUNDRY.Dashboard.P2P.Cache"}}</dt><dd>{{sw.cachedFiles}} · {{sw.cachedBytes}} / {{sw.quota}}</dd>
+    </dl>
+    {{#if sw.reason}}<p class="of-note">{{sw.reason}}</p>{{/if}}
+    {{else}}
+    <p class="of-muted">{{localize "OPTIMALFOUNDRY.Dashboard.Common.Unavailable"}}</p>
+    {{/if}}
+
+    <h3 class="of-title"><i class="fa-solid fa-share-nodes" inert></i> {{localize "OPTIMALFOUNDRY.Dashboard.P2P.Swarm"}}</h3>
+    {{#if swarm}}
+    <dl class="of-kv">
+        <dt>{{localize "OPTIMALFOUNDRY.Dashboard.Media.State"}}</dt><dd>{{swarm.stateLabel}}</dd>
+        <dt>{{localize "OPTIMALFOUNDRY.Dashboard.P2P.Sent"}}</dt><dd>{{swarm.up}} · {{swarm.servedFiles}} {{localize "OPTIMALFOUNDRY.Dashboard.P2P.Files"}}</dd>
+        <dt>{{localize "OPTIMALFOUNDRY.Dashboard.P2P.Received"}}</dt><dd>{{swarm.down}} · {{swarm.fetchedFiles}} {{localize "OPTIMALFOUNDRY.Dashboard.P2P.Files"}}</dd>
+        <dt>{{localize "OPTIMALFOUNDRY.Dashboard.P2P.Failures"}}</dt><dd>{{swarm.failures}}</dd>
+        <dt>{{localize "OPTIMALFOUNDRY.Dashboard.P2P.Participate"}}</dt><dd>{{participate}} · {{localize "OPTIMALFOUNDRY.Dashboard.P2P.UploadCap"}}: {{uploadCap}}</dd>
+    </dl>
+    {{#if swarm.reason}}<p class="of-note">{{swarm.reason}}</p>{{/if}}
+    {{#if swarm.lastFailure}}<p class="of-muted" data-tooltip-text="{{swarm.lastFailureAt}}">{{swarm.lastFailure}}</p>{{/if}}
+    {{else}}
+    <p class="of-muted">{{localize "OPTIMALFOUNDRY.Dashboard.Common.Unavailable"}}</p>
+    {{/if}}
+
+    <h3 class="of-title"><i class="fa-solid fa-users" inert></i> {{localize "OPTIMALFOUNDRY.Dashboard.P2P.Peers"}}</h3>
+    {{#if hasPeers}}
+    <table class="of-table">
+        <thead>
+            <tr>
+                <th>{{localize "OPTIMALFOUNDRY.Dashboard.Network.Player"}}</th>
+                <th>{{localize "OPTIMALFOUNDRY.Dashboard.P2P.Connection"}}</th>
+                <th>{{localize "OPTIMALFOUNDRY.Dashboard.P2P.Rtt"}}</th>
+                <th>{{localize "OPTIMALFOUNDRY.Dashboard.P2P.Sent"}}</th>
+                <th>{{localize "OPTIMALFOUNDRY.Dashboard.P2P.Received"}}</th>
+            </tr>
+        </thead>
+        <tbody>
+            {{#each peers}}
+            <tr>
+                <td>{{name}}</td>
+                <td><span class="of-chip {{#if connected}}ok{{else}}idle{{/if}}">{{state}}</span></td>
+                <td>{{rtt}}</td>
+                <td>{{up}}</td>
+                <td>{{down}}</td>
+            </tr>
+            {{/each}}
+        </tbody>
+    </table>
+    {{else}}
+    <p class="of-muted">{{localize "OPTIMALFOUNDRY.Dashboard.P2P.NoPeers"}}</p>
+    {{/if}}
+    {{/with}}
+</section>

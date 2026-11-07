@@ -1,0 +1,69 @@
+<section class="tab of-tab {{#if tab.active}}active{{/if}}" data-group="{{tab.group}}" data-tab="{{tab.id}}">
+    {{#with cleanup}}
+    <p class="of-note warn"><i class="fa-solid fa-broom" inert></i> {{localize "OPTIMALFOUNDRY.Cleanup.Lead"}} <i class="fa-regular fa-circle-question of-hint" data-tooltip="{{localize "OPTIMALFOUNDRY.Cleanup.Intro"}}" aria-label="{{localize "OPTIMALFOUNDRY.Cleanup.Intro"}}"></i></p>
+    {{#unless isCoordinator}}
+    <p class="of-note warn"><i class="fa-solid fa-lock" inert></i> {{localize "OPTIMALFOUNDRY.Cleanup.NotCoordinator"}}</p>
+    {{/unless}}
+
+    {{#if progressLabel}}
+    <p class="of-note warn"><i class="fa-solid fa-spinner fa-spin" inert></i> {{progressLabel}}</p>
+    {{/if}}
+    {{#if last}}
+    <dl class="of-kv">
+        <dt>{{localize "OPTIMALFOUNDRY.Cleanup.LastRun"}}</dt><dd>{{last.at}} · {{last.summary}}</dd>
+        {{#if last.kept.length}}
+        <dt>{{localize "OPTIMALFOUNDRY.Cleanup.Kept"}}</dt>
+        <dd>{{#each last.kept}}<span class="of-file" data-tooltip-text="{{original}}">{{name}}</span> ({{reason}}){{#unless @last}}, {{/unless}}{{/each}}</dd>
+        {{/if}}
+    </dl>
+    {{/if}}
+
+    <h3 class="of-title of-title-row">
+        <span><i class="fa-solid fa-broom" inert></i> {{localize "OPTIMALFOUNDRY.Cleanup.Candidates"}}{{#if analyzed}} ({{candidates.length}}){{/if}}</span>
+        <span class="of-title-tools">
+            <button type="button" data-action="cleanupAnalyze" {{#unless canAct}}disabled{{/unless}}>
+                <i class="fa-solid {{#if analyzing}}fa-spinner fa-spin{{else}}fa-magnifying-glass{{/if}}" inert></i> {{localize "OPTIMALFOUNDRY.Cleanup.Analyze"}}
+            </button>
+        </span>
+    </h3>
+    {{#if analyzed}}
+    {{#if notes}}<p class="of-muted">{{notes}}</p>{{/if}}
+    {{#if candidates.length}}
+    <table class="of-table">
+        <thead>
+            <tr>
+                <th class="of-pick"><input type="checkbox" data-of-pick-all {{#if allSelected}}checked{{/if}} aria-label="{{localize "OPTIMALFOUNDRY.Cleanup.SelectAll"}}"></th>
+                <th>{{localize "OPTIMALFOUNDRY.Dashboard.Media.File"}}</th>
+                <th>{{localize "OPTIMALFOUNDRY.Dashboard.Media.Kind"}}</th>
+                <th>{{localize "OPTIMALFOUNDRY.Cleanup.Original"}}</th>
+                <th>{{localize "OPTIMALFOUNDRY.Cleanup.Replacement"}}</th>
+            </tr>
+        </thead>
+        <tbody>
+            {{#each candidates}}
+            <tr>
+                <td class="of-pick"><input type="checkbox" data-of-pick="{{original}}" {{#if selected}}checked{{/if}} aria-label="{{name}}"></td>
+                <td class="of-file" data-tooltip-text="{{original}} → {{optimized}}">{{name}}</td>
+                <td>{{kind}}</td>
+                <td>{{originalSize}}</td>
+                <td class="of-muted">{{optimizedSize}}</td>
+            </tr>
+            {{/each}}
+        </tbody>
+    </table>
+    <div class="of-buttons">
+        <button type="button" class="of-danger" data-action="cleanupSelected" {{#unless canSelected}}disabled{{/unless}}>
+            <i class="fa-solid fa-broom" inert></i> {{selectedLabel}}
+        </button>
+        <button type="button" class="of-danger" data-action="cleanupAll" {{#unless canAct}}disabled{{/unless}}>
+            <i class="fa-solid fa-trash-can" inert></i> {{allLabel}}
+        </button>
+    </div>
+    {{else}}
+    <p class="of-muted">{{localize "OPTIMALFOUNDRY.Cleanup.None"}}</p>
+    {{/if}}
+    {{else}}
+    <p class="of-muted">{{localize "OPTIMALFOUNDRY.Cleanup.NotAnalyzed"}}</p>
+    {{/if}}
+    {{/with}}
+</section>

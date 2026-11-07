@@ -1,0 +1,127 @@
+<section class="tab of-tab {{#if tab.active}}active{{/if}}" data-group="{{tab.group}}" data-tab="{{tab.id}}">
+    {{#with preload}}
+    {{#unless enabled}}
+    <p class="of-note">{{localize "OPTIMALFOUNDRY.Dashboard.Preload.Disabled"}}</p>
+    {{/unless}}
+
+    <h3 class="of-title"><i class="fa-solid fa-wand-magic-sparkles" inert></i> {{localize "OPTIMALFOUNDRY.Dashboard.Preload.Auto"}} <i class="fa-regular fa-circle-question of-hint" data-tooltip="{{localize "OPTIMALFOUNDRY.Dashboard.Preload.AutoHint"}}" aria-label="{{localize "OPTIMALFOUNDRY.Dashboard.Preload.AutoHint"}}"></i></h3>
+    {{#if auto}}
+    <div class="of-stats">
+        {{#each auto.tiers}}
+        <div class="of-stat" data-tooltip-text="{{hint}}"><span class="of-value">{{files}}</span><span class="of-label">{{label}} · {{size}}</span></div>
+        {{/each}}
+    </div>
+    {{#if auto.rows.length}}
+    <table class="of-table of-plan">
+        <thead>
+            <tr>
+                <th>{{localize "OPTIMALFOUNDRY.Dashboard.Preload.What"}}</th>
+                <th>{{localize "OPTIMALFOUNDRY.Dashboard.Preload.When"}}</th>
+                <th>{{localize "OPTIMALFOUNDRY.Dashboard.Preload.Why"}}</th>
+                <th>{{localize "OPTIMALFOUNDRY.Dashboard.Preload.Files"}}</th>
+                <th>{{localize "OPTIMALFOUNDRY.Dashboard.Preload.Size"}}</th>
+            </tr>
+        </thead>
+        <tbody>
+            {{#each auto.rows}}
+            <tr>
+                <td><i class="{{icon}}" inert></i> {{name}}</td>
+                <td><span class="of-chip of-tier-{{tierCls}}">{{tier}}</span></td>
+                <td class="of-muted">{{reason}}</td>
+                <td>{{files}}</td>
+                <td>{{size}}</td>
+            </tr>
+            {{/each}}
+        </tbody>
+    </table>
+    {{#if auto.more}}<p class="of-muted">{{auto.more}}</p>{{/if}}
+    {{else}}
+    <p class="of-muted">{{localize "OPTIMALFOUNDRY.Dashboard.Preload.NothingQueued"}}</p>
+    {{/if}}
+    {{else}}
+    <p class="of-muted">{{localize "OPTIMALFOUNDRY.Dashboard.Preload.NotCoordinator"}}</p>
+    {{/if}}
+
+    <h3 class="of-title"><i class="fa-solid fa-forward" inert></i> {{localize "OPTIMALFOUNDRY.Dashboard.Preload.NextScenes"}} <i class="fa-regular fa-circle-question of-hint" data-tooltip="{{localize "OPTIMALFOUNDRY.Dashboard.Preload.NextScenesHint"}}" aria-label="{{localize "OPTIMALFOUNDRY.Dashboard.Preload.NextScenesHint"}}"></i></h3>
+    {{#if hasNext}}
+    <ul class="of-list">
+        {{#each next}}
+        <li class="{{#if missing}}of-missing{{/if}}">
+            <i class="fa-solid fa-map" inert></i>
+            <span class="of-grow">{{name}}{{#if missing}} <span class="of-chip bad">{{localize "OPTIMALFOUNDRY.Dashboard.Preload.Missing"}}</span>{{/if}}</span>
+            <a data-action="unmarkScene" data-scene-id="{{id}}" data-tooltip="{{localize "OPTIMALFOUNDRY.Dashboard.Scene.Unmark"}}"
+               aria-label="{{localize "OPTIMALFOUNDRY.Dashboard.Scene.Unmark"}}"><i class="fa-solid fa-xmark" inert></i></a>
+        </li>
+        {{/each}}
+    </ul>
+    {{else}}
+    <p class="of-muted">{{localize "OPTIMALFOUNDRY.Dashboard.Preload.NoNext"}}</p>
+    {{/if}}
+    {{#if hasSceneChoices}}
+    <div class="of-adder">
+        <select aria-label="{{localize "OPTIMALFOUNDRY.Dashboard.Preload.ChooseScene"}}">
+            {{#each sceneChoices}}<option value="{{id}}">{{name}}</option>{{/each}}
+        </select>
+        <button type="button" data-action="markScene"><i class="fa-solid fa-plus" inert></i> {{localize "OPTIMALFOUNDRY.Dashboard.Scene.Mark"}}</button>
+    </div>
+    {{/if}}
+
+    <h3 class="of-title"><i class="fa-solid fa-filter" inert></i> {{localize "OPTIMALFOUNDRY.Dashboard.Preload.Rules"}} <i class="fa-regular fa-circle-question of-hint" data-tooltip="{{localize "OPTIMALFOUNDRY.Dashboard.Preload.RulesHint"}}" aria-label="{{localize "OPTIMALFOUNDRY.Dashboard.Preload.RulesHint"}}"></i></h3>
+    <div class="of-columns">
+        <div class="of-column">
+            <h4><i class="fa-solid fa-circle-check of-ok" inert></i> {{localize "OPTIMALFOUNDRY.Dashboard.Preload.Include"}}</h4>
+            {{#if include.length}}
+            <ul class="of-list">
+                {{#each include}}
+                <li class="{{#if missing}}of-missing{{/if}}">
+                    <i class="{{icon}}" inert></i>
+                    <span class="of-grow" data-tooltip="{{uuid}}">{{label}} <span class="of-muted">{{typeLabel}}</span></span>
+                    <a data-action="removeRule" data-list="include" data-uuid="{{uuid}}" data-tooltip="{{localize "OPTIMALFOUNDRY.Dashboard.Preload.Remove"}}"
+                       aria-label="{{localize "OPTIMALFOUNDRY.Dashboard.Preload.Remove"}}"><i class="fa-solid fa-xmark" inert></i></a>
+                </li>
+                {{/each}}
+            </ul>
+            {{else}}
+            <p class="of-muted">{{localize "OPTIMALFOUNDRY.Dashboard.Preload.Empty"}}</p>
+            {{/if}}
+            {{#if hasGroups}}
+            <div class="of-adder">
+                <select aria-label="{{localize "OPTIMALFOUNDRY.Dashboard.Preload.ChooseRule"}}">
+                    {{#each groups}}
+                    <optgroup label="{{label}}">{{#each options}}<option value="{{uuid}}">{{name}}</option>{{/each}}</optgroup>
+                    {{/each}}
+                </select>
+                <button type="button" data-action="addRule" data-list="include"><i class="fa-solid fa-plus" inert></i> {{localize "OPTIMALFOUNDRY.Dashboard.Preload.Add"}}</button>
+            </div>
+            {{/if}}
+        </div>
+        <div class="of-column">
+            <h4><i class="fa-solid fa-circle-minus of-bad" inert></i> {{localize "OPTIMALFOUNDRY.Dashboard.Preload.Exclude"}}</h4>
+            {{#if exclude.length}}
+            <ul class="of-list">
+                {{#each exclude}}
+                <li class="{{#if missing}}of-missing{{/if}}">
+                    <i class="{{icon}}" inert></i>
+                    <span class="of-grow" data-tooltip="{{uuid}}">{{label}} <span class="of-muted">{{typeLabel}}</span></span>
+                    <a data-action="removeRule" data-list="exclude" data-uuid="{{uuid}}" data-tooltip="{{localize "OPTIMALFOUNDRY.Dashboard.Preload.Remove"}}"
+                       aria-label="{{localize "OPTIMALFOUNDRY.Dashboard.Preload.Remove"}}"><i class="fa-solid fa-xmark" inert></i></a>
+                </li>
+                {{/each}}
+            </ul>
+            {{else}}
+            <p class="of-muted">{{localize "OPTIMALFOUNDRY.Dashboard.Preload.Empty"}}</p>
+            {{/if}}
+            {{#if hasGroups}}
+            <div class="of-adder">
+                <select aria-label="{{localize "OPTIMALFOUNDRY.Dashboard.Preload.ChooseRule"}}">
+                    {{#each groups}}
+                    <optgroup label="{{label}}">{{#each options}}<option value="{{uuid}}">{{name}}</option>{{/each}}</optgroup>
+                    {{/each}}
+                </select>
+                <button type="button" data-action="addRule" data-list="exclude"><i class="fa-solid fa-plus" inert></i> {{localize "OPTIMALFOUNDRY.Dashboard.Preload.Add"}}</button>
+            </div>
+            {{/if}}
+        </div>
+    </div>
+    {{/with}}
+</section>

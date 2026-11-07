@@ -1,0 +1,38 @@
+{{#*inline "fieldRow"}}
+<div class="form-group">
+    <label for="of-set-{{key}}">{{localize name}} <i class="fa-regular fa-circle-question of-hint" data-tooltip="{{localize hint}}" aria-label="{{localize hint}}"></i>{{#if reload}} <i class="fa-solid fa-rotate of-muted" data-tooltip="{{localize "OPTIMALFOUNDRY.Config.NeedsReload"}}"></i>{{/if}}</label>
+    <div class="form-fields">
+        {{#if checkbox}}<input type="checkbox" id="of-set-{{key}}" name="{{key}}" {{#if value}}checked{{/if}}>{{/if}}
+        {{#if select}}<select id="of-set-{{key}}" name="{{key}}">{{#each choices}}<option value="{{value}}" {{#if selected}}selected{{/if}}>{{localize label}}</option>{{/each}}</select>{{/if}}
+        {{#if range}}<range-picker id="of-set-{{key}}" name="{{key}}" value="{{value}}" min="{{min}}" max="{{max}}" step="{{step}}"></range-picker>{{/if}}
+        {{#if number}}<input type="number" id="of-set-{{key}}" name="{{key}}" value="{{value}}">{{/if}}
+        {{#if text}}<input type="text" id="of-set-{{key}}" name="{{key}}" value="{{value}}">{{/if}}
+    </div>
+</div>
+{{/inline}}
+<div class="of-settings-body scrollable">
+    <h3 class="of-title"><i class="fa-solid fa-wand-magic-sparkles" inert></i> {{localize "OPTIMALFOUNDRY.Config.Presets"}} <i class="fa-regular fa-circle-question of-hint" data-tooltip="{{localize "OPTIMALFOUNDRY.Config.Intro"}}" aria-label="{{localize "OPTIMALFOUNDRY.Config.Intro"}}"></i>
+        {{#each presets}}{{#unless selectable}}<span class="of-chip warn of-preset-custom-chip {{#if active}}active{{/if}}" data-preset-card="{{id}}" data-tooltip="{{hint}}"><i class="{{icon}}" inert></i> {{label}}</span>{{/unless}}{{/each}}
+    </h3>
+    <div class="of-presets">
+        {{#each presets}}
+        {{#if selectable}}
+        <button type="button" class="of-preset {{#if active}}active{{/if}}" data-action="preset" data-preset="{{id}}" data-preset-card="{{id}}" data-tooltip="{{hint}}">
+            <i class="{{icon}}" inert></i>
+            <strong>{{label}}</strong>
+        </button>
+        {{/if}}
+        {{/each}}
+    </div>
+
+    <h3 class="of-title"><i class="fa-solid fa-toggle-on" inert></i> {{localize "OPTIMALFOUNDRY.Config.Basic"}}</h3>
+    {{#each basic}}{{> fieldRow}}{{/each}}
+
+    <details class="of-advanced">
+        <summary><i class="fa-solid fa-screwdriver-wrench" inert></i> {{localize "OPTIMALFOUNDRY.Config.Advanced"}} <i class="fa-regular fa-circle-question of-hint" data-tooltip="{{localize "OPTIMALFOUNDRY.Config.AdvancedHint"}}" aria-label="{{localize "OPTIMALFOUNDRY.Config.AdvancedHint"}}"></i></summary>
+        {{#each groups}}
+        <h4 class="of-subtitle"><i class="{{icon}}" inert></i> {{label}}</h4>
+        {{#each fields}}{{> fieldRow}}{{/each}}
+        {{/each}}
+    </details>
+</div>

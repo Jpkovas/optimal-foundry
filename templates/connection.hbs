@@ -1,0 +1,52 @@
+<section class="of-connection-body">
+    {{#unless secure}}
+    <p class="of-note warn">{{localize "OPTIMALFOUNDRY.Dashboard.P2P.Insecure"}}</p>
+    {{/unless}}
+
+    <h3 class="of-title"><i class="fa-solid fa-laptop" inert></i> {{localize "OPTIMALFOUNDRY.Connection.Status"}}</h3>
+    <dl class="of-kv">
+        <dt>{{localize "OPTIMALFOUNDRY.Dashboard.P2P.ServiceWorker"}}</dt>
+        <dd>
+            {{#if sw}}
+            <span class="of-chip {{#if sw.isControlling}}ok{{else}}idle{{/if}}">{{#if sw.isControlling}}{{localize "OPTIMALFOUNDRY.Dashboard.P2P.SwActive"}}{{else}}{{localize "OPTIMALFOUNDRY.Dashboard.P2P.SwInactive"}}{{/if}}</span>
+            <span class="of-muted">{{localize "OPTIMALFOUNDRY.Sw.Version"}} {{sw.version}}</span>
+            {{#if sw.outdated}}<span class="of-chip bad">{{localize "OPTIMALFOUNDRY.Sw.OutdatedBadge"}}</span>{{/if}}
+            {{else}}—{{/if}}
+        </dd>
+        {{#if sw}}
+        <dt>{{localize "OPTIMALFOUNDRY.Sw.Persisted"}}</dt><dd>{{sw.persisted}}</dd>
+        {{/if}}
+        <dt>{{localize "OPTIMALFOUNDRY.Connection.Cache"}}</dt><dd>{{cache}}</dd>
+        <dt>{{localize "OPTIMALFOUNDRY.Dashboard.Network.P2P"}}</dt>
+        <dd><span class="of-chip {{#if p2p.on}}ok{{else}}idle{{/if}}">{{p2p.label}}</span></dd>
+        <dt>{{localize "OPTIMALFOUNDRY.Dashboard.Network.Preload"}}</dt>
+        <dd>{{#if preload}}<span class="of-chip {{#if preload.on}}ok{{else}}idle{{/if}}">{{preload.label}}</span>{{else}}—{{/if}}</dd>
+        <dt>{{localize "OPTIMALFOUNDRY.Dashboard.Network.Cdn"}}</dt>
+        <dd><span class="of-chip {{#if cdn.on}}ok{{else}}idle{{/if}}">{{cdn.label}}</span>{{#if cdn.status}} <span class="of-muted">{{cdn.status}}</span>{{/if}}</dd>
+    </dl>
+    {{#if sw.reason}}<p class="of-note">{{sw.reason}}</p>{{/if}}
+    {{#if p2p.reason}}<p class="of-note">{{p2p.reason}}</p>{{/if}}
+
+    <h3 class="of-title"><i class="fa-solid fa-sliders" inert></i> {{localize "OPTIMALFOUNDRY.Connection.Options"}} <i class="fa-regular fa-circle-question of-hint" data-tooltip="{{localize "OPTIMALFOUNDRY.Connection.OptionsHint"}}" aria-label="{{localize "OPTIMALFOUNDRY.Connection.OptionsHint"}}"></i></h3>
+    <div class="of-options">
+        {{#each options}}
+        <label class="of-option">
+            {{#if checkbox}}
+            <input type="checkbox" data-of-setting="{{key}}" {{#if value}}checked{{/if}} {{#if disabled}}disabled{{/if}}>
+            {{else}}
+            <input type="number" data-of-setting="{{key}}" value="{{value}}" min="{{min}}" max="{{max}}" step="{{step}}" {{#if disabled}}disabled{{/if}}>
+            {{/if}}
+            <span class="of-option-text">
+                <span class="of-option-label">{{label}}</span>
+                <span class="of-muted">{{hint}}</span>
+            </span>
+        </label>
+        {{/each}}
+    </div>
+
+    <div class="of-buttons">
+        <button type="button" class="of-danger" data-action="clearCache" {{#if clearing}}disabled{{/if}}>
+            <i class="fa-solid {{#if clearing}}fa-spinner fa-spin{{else}}fa-broom{{/if}}" inert></i> {{localize "OPTIMALFOUNDRY.Connection.ClearCache"}}
+        </button>
+    </div>
+</section>

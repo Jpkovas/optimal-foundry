@@ -1,0 +1,83 @@
+<section class="tab of-tab {{#if tab.active}}active{{/if}}" data-group="{{tab.group}}" data-tab="{{tab.id}}">
+    {{#with network}}
+    {{#unless available}}
+    <p class="of-note warn">{{localize "OPTIMALFOUNDRY.Dashboard.Network.Unavailable"}}</p>
+    {{/unless}}
+
+    <h3 class="of-title"><i class="fa-solid fa-sliders" inert></i> {{localize "OPTIMALFOUNDRY.Dashboard.Network.Profile"}}</h3>
+    <dl class="of-kv">
+        <dt>{{localize "OPTIMALFOUNDRY.Dashboard.Network.Effective"}}</dt><dd><strong>{{profile}}</strong> <span class="of-muted">({{localize "OPTIMALFOUNDRY.Dashboard.Network.Chosen"}}: {{chosen}})</span></dd>
+        {{#if limits}}
+        <dt>{{localize "OPTIMALFOUNDRY.Dashboard.Network.MaxConcurrent"}}</dt><dd>{{limits.maxConcurrent}}</dd>
+        <dt>{{localize "OPTIMALFOUNDRY.Dashboard.Network.HostUpload"}}</dt><dd>{{limits.hostUpload}}</dd>
+        <dt>{{localize "OPTIMALFOUNDRY.Dashboard.Network.PreloadRate"}}</dt><dd>{{limits.preloadRate}}</dd>
+        <dt>{{localize "OPTIMALFOUNDRY.Dashboard.Network.StaggerJoin"}}</dt><dd>{{limits.staggerJoin}}</dd>
+        <dt>{{localize "OPTIMALFOUNDRY.Dashboard.Network.P2P"}}</dt><dd>{{limits.p2p}}</dd>
+        <dt>{{localize "OPTIMALFOUNDRY.Dashboard.Network.IdleAfter"}}</dt><dd>{{limits.idle}}</dd>
+        <dt>{{localize "OPTIMALFOUNDRY.Dashboard.Network.MaxFile"}}</dt><dd>{{limits.maxFile}}</dd>
+        {{/if}}
+    </dl>
+
+    <h3 class="of-title of-title-row">
+        <span><i class="fa-solid fa-cloud" inert></i> {{localize "OPTIMALFOUNDRY.Dashboard.Network.Cdn"}}</span>
+        <button type="button" data-action="detectCdn" {{#if cdnBusy}}disabled{{/if}}>
+            <i class="fa-solid {{#if cdnBusy}}fa-spinner fa-spin{{else}}fa-rotate{{/if}}" inert></i> {{localize "OPTIMALFOUNDRY.Dashboard.Network.DetectCdn"}}
+        </button>
+    </h3>
+    <dl class="of-kv">
+        <dt>{{localize "OPTIMALFOUNDRY.Dashboard.Network.CdnDetected"}}</dt><dd><span class="of-chip {{#if cdn.detected}}ok{{else}}idle{{/if}}">{{cdn.label}}</span></dd>
+        <dt>{{localize "OPTIMALFOUNDRY.Dashboard.Network.CdnHeader"}}</dt><dd>{{cdn.status}}</dd>
+        <dt>{{localize "OPTIMALFOUNDRY.Dashboard.Network.CheckedAt"}}</dt><dd>{{cdn.checkedAt}}{{#if cdn.measuredBy}} <span class="of-muted">· {{cdn.measuredBy}}</span>{{/if}}</dd>
+    </dl>
+    {{#if cdn.local}}<p class="of-muted">{{localize "OPTIMALFOUNDRY.Dashboard.Network.LocalHint"}}</p>{{/if}}
+
+    <h3 class="of-title"><i class="fa-solid fa-download" inert></i> {{localize "OPTIMALFOUNDRY.Dashboard.Network.Preload"}}</h3>
+    {{#if preload}}
+    <dl class="of-kv">
+        <dt>{{localize "OPTIMALFOUNDRY.Dashboard.Media.State"}}</dt><dd>{{preload.stateLabel}}</dd>
+        <dt>{{localize "OPTIMALFOUNDRY.Dashboard.Network.Progress"}}</dt><dd>{{preload.progress}}</dd>
+        <dt>{{localize "OPTIMALFOUNDRY.Dashboard.Network.QueueLength"}}</dt><dd>{{preload.queueLength}}</dd>
+        <dt>{{localize "OPTIMALFOUNDRY.Dashboard.Network.Current"}}</dt><dd class="of-file">{{preload.current}}</dd>
+    </dl>
+    {{else}}
+    <p class="of-muted">{{localize "OPTIMALFOUNDRY.Dashboard.Common.Unavailable"}}</p>
+    {{/if}}
+
+    <h3 class="of-title"><i class="fa-solid fa-users" inert></i> {{localize "OPTIMALFOUNDRY.Dashboard.Network.Clients"}}</h3>
+    {{#if self}}
+    <p class="of-muted">{{localize "OPTIMALFOUNDRY.Dashboard.Network.ThisClient"}}: {{self.inflight}} {{localize "OPTIMALFOUNDRY.Dashboard.Network.Inflight"}} · {{self.rate}} · {{localize "OPTIMALFOUNDRY.Dashboard.Network.Idle"}}: {{self.idle}}</p>
+    {{/if}}
+    {{#if hasClients}}
+    <table class="of-table">
+        <thead>
+            <tr>
+                <th>{{localize "OPTIMALFOUNDRY.Dashboard.Network.Player"}}</th>
+                <th>{{localize "OPTIMALFOUNDRY.Dashboard.Network.Inflight"}}</th>
+                <th>{{localize "OPTIMALFOUNDRY.Dashboard.Network.Rate"}}</th>
+                <th>{{localize "OPTIMALFOUNDRY.Dashboard.Network.SceneReady"}}</th>
+                <th>{{localize "OPTIMALFOUNDRY.Dashboard.Network.NextReady"}}</th>
+                <th>{{localize "OPTIMALFOUNDRY.Dashboard.Network.Idle"}}</th>
+                <th>{{localize "OPTIMALFOUNDRY.Dashboard.Network.Preload"}}</th>
+                <th>{{localize "OPTIMALFOUNDRY.Dashboard.Network.P2P"}}</th>
+            </tr>
+        </thead>
+        <tbody>
+            {{#each clients}}
+            <tr class="{{#if stale}}of-stale{{/if}}">
+                <td>{{name}}{{#if queue}} <span class="of-chip idle">{{queue}}</span>{{/if}}</td>
+                <td>{{inflight}}</td>
+                <td>{{rate}}</td>
+                <td><i class="fa-solid {{#if sceneReady}}fa-check of-ok{{else}}fa-hourglass-half of-muted{{/if}}" inert></i></td>
+                <td class="{{#if nextDone}}of-ok{{/if}}">{{nextReady}}</td>
+                <td><i class="fa-solid {{#if idle}}fa-moon of-muted{{else}}fa-bolt of-busy{{/if}}" inert></i></td>
+                <td>{{preload}}</td>
+                <td>{{p2p}}</td>
+            </tr>
+            {{/each}}
+        </tbody>
+    </table>
+    {{else}}
+    <p class="of-muted">{{localize "OPTIMALFOUNDRY.Dashboard.Network.NoClients"}}</p>
+    {{/if}}
+    {{/with}}
+</section>

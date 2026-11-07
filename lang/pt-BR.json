@@ -1,0 +1,787 @@
+{
+  "OPTIMALFOUNDRY": {
+    "Settings": {
+      "mediaEnabled": {
+        "Name": "Otimizar arquivos",
+        "Hint": "Deixa imagens, vídeos e sons menores para carregarem mais rápido, sem perda visível de qualidade. Desligado, o módulo não mexe em nenhum arquivo."
+      },
+      "optimizeUploads": {
+        "Name": "Otimizar o que for enviado",
+        "Hint": "Quando alguém envia uma imagem, vídeo ou som para o Foundry, o arquivo é convertido antes de subir e só a versão leve é guardada. Vale para todos, inclusive para os jogadores: quem decide é o mestre."
+      },
+      "backfillMode": {
+        "Name": "Arquivos que o mundo já tem",
+        "Hint": "Automático: converte aos poucos, em segundo plano, tudo o que o mundo já usa e troca as referências pelas versões leves. Revisar antes: lista o que seria convertido e só mexe no que você aprovar (aba Mídia do painel). Não otimizar: deixa os arquivos existentes como estão. Os originais ficam guardados; para esvaziá-los e liberar espaço, use a aba Limpeza.",
+        "Choices": {
+          "auto": "Automático",
+          "review": "Revisar antes",
+          "off": "Não otimizar"
+        }
+      },
+      "keepResolution": {
+        "Name": "Manter o tamanho das imagens e vídeos",
+        "Hint": "Recomendado. Só comprime, sem diminuir as dimensões, então nada fica desalinhado no mapa. Desligue para reduzir imagens e vídeos muito grandes (limites em Avançado)."
+      },
+      "maxImageSide": {
+        "Name": "Tamanho máximo das imagens (px)",
+        "Hint": "Só vale com \"Manter o tamanho\" desligado. Imagens maiores que isto, no lado maior, são reduzidas."
+      },
+      "maxVideoHeight": {
+        "Name": "Resolução máxima dos vídeos",
+        "Hint": "Só vale com \"Manter o tamanho\" desligado. Vídeos acima disto são reduzidos.",
+        "Choices": {
+          "720": "720p",
+          "1080": "1080p",
+          "1440": "1440p",
+          "2160": "2160p (4K)"
+        }
+      },
+      "imageQuality": {
+        "Name": "Qualidade das imagens",
+        "Hint": "Quanto maior, mais fiel e mais pesado. 0,85 quase não tem diferença visível e economiza bastante. Mapas de cores chapadas são guardados sem perda quando isso sai menor."
+      },
+      "videoQuality": {
+        "Name": "Qualidade dos vídeos",
+        "Hint": "Média serve para quase tudo, inclusive mapas animados. Alta só se você notar perda de detalhe.",
+        "Choices": {
+          "low": "Baixa (mais leve)",
+          "medium": "Média (recomendada)",
+          "high": "Alta (mais pesada)"
+        }
+      },
+      "videoStripAudio": {
+        "Name": "Tirar o som dos vídeos",
+        "Hint": "Mapas e cenas animadas quase nunca precisam de som. Tirar deixa o arquivo menor."
+      },
+      "audioBitrate": {
+        "Name": "Qualidade das músicas e sons",
+        "Hint": "128 kbps já soa muito bem para trilhas e efeitos. Valores menores economizam mais; maiores são para quem é exigente com áudio.",
+        "Choices": {
+          "64": "64 kbps",
+          "96": "96 kbps",
+          "128": "128 kbps",
+          "160": "160 kbps",
+          "192": "192 kbps"
+        }
+      },
+      "skipMp3BelowKbps": {
+        "Name": "Não mexer em MP3 abaixo de (kbps)",
+        "Hint": "MP3 que já é leve fica como está, porque converter quase não economizaria."
+      },
+      "minSavingsPct": {
+        "Name": "Economia mínima (%)",
+        "Hint": "Se a versão nova não ficar pelo menos isto menor, o original é mantido."
+      },
+      "convertAnimatedGif": {
+        "Name": "Transformar GIFs animados em vídeo",
+        "Hint": "GIFs animados usados como tile ou token viram vídeo leve com transparência. GIFs em fichas e retratos ficam como estão."
+      },
+      "includeCompendia": {
+        "Name": "Incluir os compêndios do mundo",
+        "Hint": "Também otimiza as imagens e sons guardados nos compêndios deste mundo. Compêndios de módulos e sistemas não são alterados."
+      },
+      "protectActiveScene": {
+        "Name": "Não mexer na cena em jogo",
+        "Hint": "Arquivos da cena ativa e sons tocando agora só são trocados depois que saírem de uso, para nada piscar durante a sessão."
+      },
+      "networkProfile": {
+        "Name": "Como os jogadores chegam até você",
+        "Hint": "Automático descobre sozinho e serve para quase todos. \"Túnel sem CDN\" é para link do Cloudflare Tunnel rápido, ngrok ou porta aberta no roteador. \"Atrás de um CDN\" é para domínio próprio no Cloudflare com cache. Personalizado libera os ajustes de rede em Avançado.",
+        "Choices": {
+          "auto": "Automático (recomendado)",
+          "quickTunnel": "Túnel sem CDN",
+          "cdn": "Atrás de um CDN (Cloudflare)",
+          "custom": "Personalizado"
+        }
+      },
+      "hostUploadMbps": {
+        "Name": "Velocidade de upload da sua internet (Mbps)",
+        "Hint": "A velocidade de ENVIO da internet de quem hospeda o Foundry (veja num teste de velocidade). Serve para não entupir a conexão durante o jogo."
+      },
+      "preloadSharePct": {
+        "Name": "Parte do upload para baixar antes (%)",
+        "Hint": "Só no perfil Personalizado. Quanto da sua internet pode ser usado para adiantar as próximas cenas; o resto fica livre para o jogo."
+      },
+      "maxConcurrentRequests": {
+        "Name": "Downloads ao mesmo tempo",
+        "Hint": "Só no perfil Personalizado. Limite de arquivos baixando ao mesmo tempo, somando todos os jogadores. Túneis gratuitos engasgam com muitos."
+      },
+      "staggerJoin": {
+        "Name": "Jogadores entram um de cada vez",
+        "Hint": "Só no perfil Personalizado. Quando vários entram juntos, cada um carrega a cena na sua vez, em vez de todos disputarem a sua internet."
+      },
+      "preloadEnabled": {
+        "Name": "Baixar as próximas cenas antes da hora",
+        "Hint": "Enquanto ninguém está carregando nada, os jogadores baixam com antecedência as cenas que vêm a seguir. A troca de cena fica quase instantânea."
+      },
+      "idleSeconds": {
+        "Name": "Esperar antes de adiantar (s)",
+        "Hint": "Quanto tempo sem nenhum download até começar a baixar as próximas cenas."
+      },
+      "preloadMaxFileMB": {
+        "Name": "Arquivo máximo para adiantar (MB)",
+        "Hint": "Arquivos maiores que isto só são baixados quando forem usados."
+      },
+      "predecodeNext": {
+        "Name": "Preparar a próxima cena na memória",
+        "Hint": "Além de baixar, deixa as imagens da próxima cena prevista (a marcada; sem marcação, a vizinha na barra de navegação ou na pasta) prontas na memória do computador, para a troca ser instantânea. Gasta mais memória; só liga em computadores com desempenho Médio ou maior."
+      },
+      "preloadOnThisDevice": {
+        "Name": "Baixar as próximas cenas neste aparelho",
+        "Hint": "Desligue se sua internet for lenta ou limitada (por exemplo, no celular). Começa desligado quando a economia de dados do navegador está ativa."
+      },
+      "preloadInclude": {
+        "Name": "Sempre pré-carregar",
+        "Hint": "Pastas e playlists que entram sempre no pré-carregamento. Edite pelo painel do Optimal Foundry."
+      },
+      "preloadExclude": {
+        "Name": "Nunca pré-carregar",
+        "Hint": "Pastas e playlists que ficam fora do pré-carregamento. Edite pelo painel do Optimal Foundry."
+      },
+      "p2pEnabled": {
+        "Name": "Jogadores compartilham arquivos entre si",
+        "Hint": "Quem já baixou um arquivo envia direto para os outros jogadores, poupando a sua internet. Precisa de HTTPS. Na conexão direta os jogadores do mundo veem o endereço IP uns dos outros."
+      },
+      "serviceWorker": {
+        "Name": "Guardar arquivos no navegador",
+        "Hint": "Cada jogador guarda as versões leves no próprio navegador e não baixa de novo na próxima sessão. Precisa de HTTPS (ou localhost)."
+      },
+      "iceServers": {
+        "Name": "Servidores de conexão (STUN/TURN)",
+        "Hint": "Endereços usados para os jogadores se encontrarem. O padrão funciona na maioria das casas. Só mude se souber o que é um servidor TURN."
+      },
+      "p2pMinFileKB": {
+        "Name": "Tamanho mínimo para compartilhar (KB)",
+        "Hint": "Arquivos menores que isto vêm sempre do servidor: não compensa abrir uma conexão entre jogadores."
+      },
+      "p2pTimeoutSec": {
+        "Name": "Espera pelos outros jogadores (s)",
+        "Hint": "Quanto esperar por um colega antes de baixar o arquivo do servidor."
+      },
+      "p2pParticipate": {
+        "Name": "Compartilhar arquivos com os outros jogadores",
+        "Hint": "Desligue se sua internet for limitada. Na conexão direta os outros jogadores do mundo veem o endereço IP deste navegador; desligar evita isso."
+      },
+      "p2pUploadCapMBps": {
+        "Name": "Velocidade máxima de envio aos colegas (MB/s)",
+        "Hint": "Limita quanto da sua internet é usado para mandar arquivos aos outros jogadores."
+      },
+      "cacheQuotaMB": {
+        "Name": "Espaço para guardar arquivos (MB)",
+        "Hint": "Quanto espaço os arquivos guardados podem ocupar neste navegador. Os menos usados saem primeiro quando enche."
+      },
+      "library": {
+        "Name": "Biblioteca de otimização",
+        "Hint": "Registro interno de cada original e da sua cópia otimizada. Não edite à mão."
+      },
+      "nextScenes": {
+        "Name": "Próximas cenas",
+        "Hint": "Cenas marcadas pelo mestre para pré-carregar primeiro."
+      },
+      "cdnStatus": {
+        "Name": "Estado do CDN",
+        "Hint": "Resultado interno da última detecção de CDN."
+      }
+    },
+    "Dashboard": {
+      "Title": "Optimal Foundry",
+      "GMOnly": "Só o mestre pode abrir o painel do Optimal Foundry.",
+      "ApiNotReady": "Módulo ainda carregando",
+      "Menu": {
+        "Name": "Painel do Optimal Foundry",
+        "Label": "Abrir painel",
+        "Hint": "Acompanhe a otimização da mídia, a rede, o P2P e escolha o que pré-carregar."
+      },
+      "Tabs": {
+        "media": "Mídia",
+        "network": "Rede",
+        "p2p": "P2P",
+        "preload": "Pré-carregamento",
+        "cleanup": "Limpeza"
+      },
+      "Common": {
+        "Yes": "Sim",
+        "No": "Não",
+        "On": "Ligado",
+        "Off": "Desligado",
+        "Unavailable": "Indisponível"
+      },
+      "Kind": {
+        "image": "Imagem",
+        "video": "Vídeo",
+        "audio": "Áudio"
+      },
+      "Status": {
+        "done": "Otimizados",
+        "skipped": "Pulados",
+        "failed": "Com falha"
+      },
+      "Phase": {
+        "idle": "Parado",
+        "scanning": "Varrendo o mundo",
+        "converting": "Convertendo",
+        "rewriting": "Atualizando referências"
+      },
+      "Media": {
+        "Library": "Biblioteca",
+        "OriginalSize": "Tamanho original",
+        "OptimizedSize": "Tamanho otimizado",
+        "Saved": "Economizado",
+        "Capabilities": "Este navegador converte:",
+        "Backfill": "Otimização do acervo",
+        "State": "Estado",
+        "Running": "Rodando",
+        "Paused": "Pausado",
+        "Stopped": "Parado",
+        "Queued": "Na fila",
+        "SessionTotals": "Nesta execução",
+        "Deferred": "Adiados (em uso agora)",
+        "Scan": "Varrer o mundo",
+        "Start": "Iniciar",
+        "Pause": "Pausar",
+        "UndoAll": "Desfazer tudo",
+        "UndoAllTitle": "Desfazer todas as otimizações?",
+        "UndoAllConfirm": "Todos os documentos voltam a apontar para os arquivos originais. Os arquivos restaurados não serão otimizados de novo automaticamente (use \"Otimizar de novo\" para isso); mídia nova segue o modo escolhido (automático, revisar antes ou não otimizar). Os arquivos otimizados continuam no servidor (o Foundry não permite apagar arquivos). Continuar?",
+        "UndoEntry": "Voltar ao original",
+        "Entries": "Arquivos",
+        "FilterLabel": "Filtrar arquivos",
+        "Filter": {
+          "failed": "Com falha",
+          "skipped": "Pulados",
+          "done": "Otimizados",
+          "all": "Todos"
+        },
+        "File": "Arquivo",
+        "Kind": "Tipo",
+        "Status": "Situação",
+        "Detail": "Detalhe",
+        "Attempts": "{count} tentativa(s)",
+        "NoEntries": "Nenhum arquivo nesta lista.",
+        "Truncated": "Mostrando os {shown} mais recentes de {total}.",
+        "Unavailable": "A otimização do acervo não está disponível (mídia desligada ou erro ao iniciar; veja o console).",
+        "NotCoordinator": "Só uma sessão de mestre coordena a otimização do acervo (o mestre de maior permissão, na aba aberta primeiro). Os controles ficam bloqueados aqui.",
+        "Retry": "Tentar de novo",
+        "Reoptimize": "Otimizar de novo",
+        "RetryFiltered": "Tentar de novo os arquivos desta lista",
+        "RetryFilteredConfirm": "Tentar de novo {count} arquivos? Os restaurados são otimizados de novo e as referências voltam a apontar para a cópia otimizada; os outros voltam para a fila de conversão.",
+        "Mode": {
+          "auto": "Modo automático: tudo o que o mundo usa é convertido aos poucos, sem perguntar.",
+          "review": "Modo revisar antes: nada é convertido sem a sua aprovação. O que espera por você aparece logo abaixo.",
+          "off": "A otimização dos arquivos existentes está desligada. Só o que for enviado de agora em diante é otimizado (se essa opção estiver ligada)."
+        },
+        "WaitingWelcome": "Nada é convertido antes de alguém concluir a tela de boas-vindas do módulo.",
+        "WaitingWelcomeShort": "Esperando as boas-vindas"
+      },
+      "Network": {
+        "Profile": "Perfil",
+        "Effective": "Em uso",
+        "Chosen": "escolhido",
+        "MaxConcurrent": "Downloads simultâneos",
+        "HostUpload": "Upload do servidor",
+        "PreloadRate": "Banda do pré-carregamento",
+        "StaggerJoin": "Entrada escalonada",
+        "P2P": "P2P",
+        "IdleAfter": "Ocioso após",
+        "MaxFile": "Maior arquivo pré-carregado",
+        "Cdn": "CDN",
+        "DetectCdn": "Detectar de novo",
+        "CdnDetected": "CDN com cache",
+        "CdnOn": "CDN ativo",
+        "CdnOff": "sem CDN",
+        "CdnHeader": "Cabeçalho cf-cache-status",
+        "CheckedAt": "Verificado em",
+        "LocalHint": "No localhost, quem mede o CDN é um jogador conectado. Clique em Detectar de novo com um jogador on-line.",
+        "Preload": "Pré-carregamento",
+        "PreloadActive": "Ativo",
+        "PreloadPaused": "Pausado (carregamento urgente)",
+        "Progress": "Progresso",
+        "QueueLength": "Itens na fila",
+        "Current": "Agora",
+        "Clients": "Jogadores conectados",
+        "ThisClient": "Este navegador",
+        "Player": "Jogador",
+        "Inflight": "baixando",
+        "Rate": "Velocidade",
+        "SceneReady": "Cena pronta",
+        "Idle": "Ocioso",
+        "P2PCell": "↑ {up} ↓ {down} · pares: {peers}",
+        "NoClients": "Nenhum dado dos jogadores ainda.",
+        "Unavailable": "O gerenciador de rede não está disponível (veja o console).",
+        "MeasuredBy": "medido por {by} em {origin}",
+        "NextReady": "Pronto para o que vem",
+        "QueuePos": "fila #{position}",
+        "Joining": "carregando agora",
+        "PreloadServing": "Servindo a fila (este navegador não pré-carrega)"
+      },
+      "P2P": {
+        "ServiceWorker": "Cache local (Service Worker)",
+        "SwActive": "Cache ativo",
+        "SwInactive": "Sem cache",
+        "Supported": "Suportado",
+        "Registered": "Registrado",
+        "Controlling": "Controlando a página",
+        "Scope": "Escopo",
+        "Cache": "Arquivos no cache",
+        "Swarm": "Rede entre jogadores",
+        "PeersCount": "pares: {count}",
+        "Sent": "Enviado",
+        "Received": "Recebido",
+        "Files": "arquivos",
+        "Failures": "Falhas",
+        "Participate": "Este navegador participa",
+        "UploadCap": "limite",
+        "Peers": "Pares",
+        "Connection": "Conexão",
+        "Rtt": "Latência",
+        "NoPeers": "Nenhum par conectado.",
+        "Insecure": "Esta página não está em HTTPS nem no localhost: o navegador bloqueia o cache local e o P2P.",
+        "State": {
+          "new": "Novo",
+          "connecting": "Conectando",
+          "connected": "Conectado",
+          "disconnected": "Desconectado",
+          "failed": "Falhou",
+          "closed": "Fechado",
+          "banned": "Bloqueado"
+        }
+      },
+      "Preload": {
+        "NextScenes": "Passar na frente (opcional)",
+        "NextScenesHint": "Marque uma cena só se quiser que ela vá antes de tudo, por exemplo a próxima da sessão. Também dá para marcar pelo menu de contexto da aba Cenas. Uma cena sai da lista quando é ativada.",
+        "NoNext": "Nenhuma cena marcada.",
+        "ChooseScene": "Escolha uma cena",
+        "Missing": "não encontrada",
+        "Rules": "Pastas e playlists",
+        "RulesHint": "\"Sempre\" entra na frente, junto com o que é provável. \"Nunca\" fica fora da fila.",
+        "Include": "Sempre pré-carregar",
+        "Exclude": "Nunca pré-carregar",
+        "Empty": "Nada aqui.",
+        "ChooseRule": "Escolha uma pasta ou playlist",
+        "Add": "Adicionar",
+        "Remove": "Remover",
+        "SceneFolders": "Pastas de cenas",
+        "PlaylistFolders": "Pastas de playlists",
+        "Playlists": "Playlists",
+        "SceneFolder": "pasta de cenas",
+        "PlaylistFolder": "pasta de playlists",
+        "Playlist": "playlist",
+        "Disabled": "O pré-carregamento está desligado nas configurações. As escolhas abaixo ficam guardadas para quando ligar.",
+        "Auto": "Previsão automática",
+        "AutoHint": "O módulo decide sozinho o que cada jogador baixa enquanto a rede está parada, do mais provável para o menos provável: as cenas que os jogadores estão vendo, o resto da cena ativa e a playlist dela, o que está tocando, as cenas vizinhas na barra de navegação e na pasta, os destinos de teleporte, depois as outras cenas da barra, as fichas dos personagens, e por fim todo o resto do mundo (as outras cenas e playlists, mesmo as escondidas, e as imagens dos diários que os jogadores podem ver). A banda reservada para isso, o P2P entre os jogadores e o espaço no navegador de cada um decidem até onde dá para ir. Você não precisa marcar nada.",
+        "Tier": {
+          "0": "Agora",
+          "1": "Provável",
+          "2": "Nesta sessão",
+          "3": "Depois"
+        },
+        "TierHint": {
+          "0": "Cenas marcadas, a cena que o mestre está preparando e as cenas que os jogadores estão vendo.",
+          "1": "O resto da cena ativa, o que está tocando, as cenas vizinhas, os destinos de teleporte e o que está em Sempre pré-carregar.",
+          "2": "As outras cenas da barra de navegação, as playlists ligadas às cenas acima e as imagens dos personagens dos jogadores.",
+          "3": "Todo o resto do mundo: as outras cenas e playlists, mesmo as que os jogadores ainda não veem, e as imagens dos diários que eles podem ver."
+        },
+        "What": "O quê",
+        "When": "Quando",
+        "Why": "Por quê",
+        "Files": "Arquivos",
+        "Size": "Tamanho",
+        "Group": {
+          "actors": "Personagens dos jogadores",
+          "journals": "Diários visíveis aos jogadores"
+        },
+        "Reason": {
+          "marked": "marcada por você",
+          "gmViewing": "o mestre está com ela aberta",
+          "playerViewing": "um jogador está vendo",
+          "active": "cena ativa",
+          "playing": "tocando agora",
+          "navigation": "vizinha na barra de navegação",
+          "teleport": "destino de teleporte da cena ativa",
+          "folder": "vizinha na pasta",
+          "include": "em Sempre pré-carregar",
+          "linked": "playlist de uma cena acima",
+          "navigationBar": "na barra de navegação",
+          "characters": "fichas e tokens",
+          "rest": "resto do mundo",
+          "journals": "imagens e vídeos"
+        },
+        "More": "… e mais {count} itens.",
+        "NothingQueued": "Nada na fila agora: tudo o que o mundo usa já foi previsto ou está sendo convertido.",
+        "NotCoordinator": "A fila é montada pela sessão do mestre que coordena. Abra o painel nela para ver a previsão."
+      },
+      "Scene": {
+        "Mark": "Marcar como próxima cena",
+        "Unmark": "Desmarcar",
+        "Indicator": "Próxima cena (pré-carregada primeiro)"
+      },
+      "Notify": {
+        "ActionFailed": "Optimal Foundry: a ação falhou: {error}",
+        "Unavailable": "Optimal Foundry: este recurso não está disponível agora.",
+        "ScanDone": "Optimal Foundry: {paths} arquivos referenciados · {convert} para converter ({image} imagens, {audio} áudios, {video} vídeos) · {rewrite} para reapontar.",
+        "ScanFailed": "Optimal Foundry: a varredura falhou: {error}",
+        "Retried": "Optimal Foundry: {count} arquivos de volta na fila."
+      },
+      "Scan": {
+        "Title": "O que o mundo usa",
+        "Intro": "Todos os arquivos de mídia que o mundo usa (cenas, atores, itens, diários, playlists e compêndios do mundo), venham de onde vierem: da pasta do mundo, de módulos, do sistema ou do próprio Foundry. \"Já leves\" são WebP, AVIF, Ogg e Opus: já estão no formato final, então não há o que converter. Passe o mouse sobre as colunas para ver o que cada uma quer dizer.",
+        "NotScanned": "Ainda não houve varredura neste mundo. Clique em Varrer o mundo.",
+        "LastScan": "Última varredura: {at} · {total} arquivos",
+        "Total": "Total",
+        "Origin": {
+          "label": "De onde vem",
+          "world": "Pasta do mundo",
+          "module": "Módulos",
+          "system": "Sistema",
+          "core": "Foundry (ícones e sons)",
+          "data": "Outras pastas do Data",
+          "otherWorld": "Pastas de outros mundos"
+        },
+        "OriginHint": {
+          "world": "Arquivos dentro de worlds/<este mundo>/.",
+          "module": "Arquivos que vêm de módulos instalados (modules/…). As versões otimizadas vão para a pasta optimal-foundry/ do Data, porque a pasta do módulo é substituída quando ele atualiza.",
+          "system": "Arquivos do sistema de jogo (systems/…). As versões otimizadas vão para a pasta optimal-foundry/ do Data.",
+          "core": "Ícones, sons e imagens que vêm com o Foundry (icons/, sounds/, ui/…). Quase todos já são WebP ou Ogg.",
+          "data": "Arquivos em outras pastas do Data, fora de worlds/, modules/ e systems/ (por exemplo, uma pasta assets/ sua).",
+          "otherWorld": "Arquivos guardados na pasta de outro mundo que este mundo também usa."
+        },
+        "Outcome": {
+          "optimized": "Otimizados",
+          "light": "Já leves",
+          "queued": "Na fila",
+          "skipped": "Pulados",
+          "failed": "Com falha",
+          "review": "Esperando você"
+        },
+        "OutcomeHint": {
+          "optimized": "Já têm versão otimizada e o mundo usa essa versão.",
+          "light": "Já estão em WebP, AVIF, Ogg ou Opus. Nada a fazer.",
+          "queued": "Ainda vão ser convertidos, ou já foram e falta trocar a referência para a versão otimizada.",
+          "skipped": "Ficaram como estão; o motivo aparece na lista de arquivos abaixo (filtro Pulados).",
+          "failed": "Não deu para converter depois de várias tentativas; veja o filtro Com falha.",
+          "review": "Não convertidos porque esperam sua aprovação (modo Revisar antes) ou porque a otimização dos arquivos existentes está desligada."
+        },
+        "External": "{count} arquivo(s) estão em outro endereço (S3, CDN ou outro site) e não são lidos: o módulo só converte arquivos que o próprio servidor do Foundry guarda. Exemplos: {examples}",
+        "Vector": "{count} imagem(ns) SVG ficam como estão: são vetoriais e já são leves.",
+        "Packs": "{packs} compêndio(s) de módulos e do sistema ({documents} documentos) não são lidos. Eles pertencem ao módulo ou ao sistema e voltariam ao original na próxima atualização, então o módulo não mexe neles. O que você importa para o mundo (cenas, atores, diários) passa a ser lido e otimizado.",
+        "PacksAll": "{packs} compêndio(s) ({documents} documentos) não são lidos, inclusive os do mundo, porque a opção \"Incluir os compêndios do mundo\" está desligada. Os de módulos e do sistema nunca são lidos: voltariam ao original na próxima atualização. O que você importa para o mundo passa a ser lido e otimizado."
+      },
+      "Review": {
+        "Title": "Esperando sua aprovação",
+        "Intro": "Estes arquivos seriam convertidos e as cenas, fichas e diários que os usam passariam a apontar para a versão leve. Marque o que pode ser otimizado. O que você deixar como está não aparece mais aqui (Tentar de novo, na lista de arquivos, traz de volta).",
+        "UsedIn": "Usado em",
+        "Preview": "Ver o arquivo",
+        "ApproveSelected": "Otimizar marcados ({count})",
+        "DeclineSelected": "Deixar como está ({count})",
+        "ApproveAll": "Otimizar todos ({count})",
+        "ApproveAllTitle": "Otimizar todos",
+        "ApproveAllConfirm": "Converter os {count} arquivos da lista? As referências passam para as versões leves; dá para desfazer pela lista de arquivos ou por Desfazer tudo.",
+        "Approved": "{count} arquivo(s) aprovados; a conversão começa em segundo plano.",
+        "Declined": "{count} arquivo(s) vão ficar como estão."
+      }
+    },
+    "Reasons": {
+      "tooLarge": "maior que 16383 px (limite do WebP)",
+      "animatedGifImageField": "GIF animado usado como imagem; mantido",
+      "missing": "arquivo não encontrado no servidor",
+      "noSavings": "a conversão não economizaria o bastante",
+      "alreadyOptimized": "já está em formato otimizado",
+      "unsupported": "formato não suportado",
+      "notCapable": "este navegador não consegue converter",
+      "decodeError": "não foi possível ler o arquivo",
+      "encodeError": "falha ao converter",
+      "uploadFailed": "falha ao enviar a cópia otimizada",
+      "rewriteFailed": "falha ao atualizar referências",
+      "insecureContext": "página sem HTTPS",
+      "unsupportedBrowser": "navegador sem suporte",
+      "disabled": "desligado nas configurações",
+      "registrationFailed": "o registro do Service Worker falhou",
+      "restored": "restaurado ao original pelo mestre; não será otimizado de novo automaticamente",
+      "interrupted": "a conversão foi interrompida (o navegador travou ou foi fechado)",
+      "notPersisted": "não deu para salvar a biblioteca; as referências não foram trocadas",
+      "scanFailed": "a varredura do mundo falhou",
+      "workerStopped": "a otimização do acervo parou por causa de um erro",
+      "declined": "Você escolheu deixar como está"
+    },
+    "Library": {
+      "Finished": "Otimização em segundo plano concluída: {done} convertidos, {skipped} pulados, {failed} com falha.",
+      "NotCapable": "Este navegador não consegue converter {kind}. Abra o mundo no app do Foundry ou no Chrome/Edge para otimizar esses arquivos.",
+      "UndoDone": "Otimização desfeita: {reverted} arquivos voltaram a usar o original.",
+      "UndoKept": "{kept} arquivos não foram desfeitos (o original não existe ou alguma atualização falhou). Veja o console.",
+      "Kind": {
+        "image": "imagens",
+        "video": "vídeos",
+        "audio": "áudios"
+      },
+      "UploadFailed": "Falha ao enviar o arquivo otimizado para o servidor",
+      "ConvertFailed": "Falha na conversão",
+      "UndoPaused": "A otimização do acervo está pausada. Clique em Iniciar no painel para retomar."
+    },
+    "Media": {
+      "Converting": "Otimizando {name}… Clique para pular e enviar o original.",
+      "Optimized": "{name} otimizado: {saved}% menor.",
+      "ConvertFailed": "Não deu para otimizar {name}. O original foi enviado.",
+      "NotCapable": "Este navegador não consegue converter {name}. O original foi enviado e o mestre vai otimizá-lo em segundo plano.",
+      "UploadTooLarge": "{name} tem {size} MB. Pelo túnel da Cloudflare o limite é 100 MB por envio, então este upload pode falhar. Envie pelo computador do servidor ou reduza o arquivo.",
+      "Reason": {
+        "notCapable": "Navegador sem suporte para converter este formato",
+        "alreadyOptimized": "Já está em um formato otimizado",
+        "vector": "Imagem vetorial (SVG) não é convertida",
+        "unsupported": "Formato não suportado",
+        "undecodable": "O navegador não conseguiu ler o arquivo",
+        "tooLarge": "Maior que 16383 px de lado (limite do WebP)",
+        "noSavings": "A versão otimizada não ficou menor o suficiente",
+        "lowBitrate": "MP3 com taxa de bits baixa; converter não compensa",
+        "missing": "Arquivo não encontrado no servidor",
+        "noVideoTrack": "O arquivo não tem faixa de vídeo",
+        "noAudioTrack": "O arquivo não tem faixa de áudio",
+        "audioNotEncodable": "O áudio do vídeo não pôde ser convertido",
+        "animatedGif": "GIF animado mantido como está no upload",
+        "animatedGifImageField": "GIF animado usado em campo de imagem; mantido como está",
+        "animatedGifDisabled": "Conversão de GIF animado desligada"
+      },
+      "OptimizedBatch": "{count} arquivos otimizados, {mb} MB economizados."
+    },
+    "Network": {
+      "WaitingTurn": "Aguardando sua vez de carregar a cena (posição {position} na fila)."
+    },
+    "Cdn": {
+      "Found": "CDN com cache detectado (cf-cache-status: {status}). O perfil automático passa a usar o CDN.",
+      "NotFound": "Nenhum CDN com cache detectado (resultado: {status}). O perfil automático usa os limites do túnel.",
+      "Status": {
+        "HIT": "Em cache (HIT)",
+        "MISS": "Não estava em cache (MISS)",
+        "EXPIRED": "Cache expirado (EXPIRED)",
+        "REVALIDATED": "Cache revalidado (REVALIDATED)",
+        "UPDATING": "Cache atualizando (UPDATING)",
+        "STALE": "Cache antigo (STALE)",
+        "DYNAMIC": "Passa pelo CDN sem cache (DYNAMIC)",
+        "BYPASS": "CDN ignora o cache (BYPASS)",
+        "none": "Sem CDN",
+        "local": "Endereço local: sem CDN",
+        "noProbe": "Nenhum arquivo disponível para testar",
+        "error": "Falha no teste"
+      },
+      "NoPlayer": "Optimal Foundry: nenhum jogador on-line para medir o CDN. Tente de novo com um jogador conectado.",
+      "ProbeFailed": "Optimal Foundry: a medição do CDN falhou. Veja o console."
+    },
+    "Sw": {
+      "Version": "Versão",
+      "OutdatedBadge": "desatualizado",
+      "Outdated": "O optimal-foundry-sw.js na raiz da pasta Data está desatualizado (v{version}, esperado v{expected}). Copie de novo o modules/optimal-foundry/sw.js para lá.",
+      "Persisted": "Armazenamento persistente"
+    },
+    "Preload": {
+      "GMOnly": "Só o mestre pode marcar as próximas cenas."
+    },
+    "P2P": {
+      "SwReason": {
+        "insecure": "O Service Worker precisa de HTTPS ou localhost.",
+        "unsupported": "Este navegador não tem Service Worker ou Cache Storage.",
+        "scopeDenied": "O servidor não envia \"Service-Worker-Allowed: /\". Copie sw.js para a raiz da pasta Data como optimal-foundry-sw.js.",
+        "notFound": "Não foi possível baixar o sw.js do módulo.",
+        "notActive": "O Service Worker foi registrado, mas não ativou a tempo. Recarregue a página.",
+        "error": "O Service Worker falhou ao iniciar. Veja o console."
+      },
+      "SwarmReason": {
+        "optOut": "Você desligou o P2P neste navegador.",
+        "insecure": "O P2P precisa de HTTPS ou localhost.",
+        "noWebRTC": "Este navegador não tem WebRTC.",
+        "noCrypto": "Este navegador não tem Web Crypto para conferir os arquivos.",
+        "noCache": "Este navegador não tem Cache Storage.",
+        "error": "O P2P falhou ao iniciar. Veja o console.",
+        "local": "Este navegador acessa o servidor localmente; não semeia nem baixa por P2P (o upload dividiria o link do servidor)."
+      },
+      "PeerState": {
+        "connecting": "Conectando",
+        "open": "Conectado",
+        "failed": "Falhou",
+        "closed": "Fechado"
+      },
+      "LastFailure": "Última falha: {name}, {reason} (local: {local}; remoto: {remote})"
+    },
+    "Connection": {
+      "Title": "Minha conexão",
+      "Menu": {
+        "Name": "Minha conexão",
+        "Label": "Abrir",
+        "Hint": "Veja como este aparelho carrega o jogo (cache local, P2P, pré-carregamento) e ajuste as opções dele."
+      },
+      "Status": "Este aparelho",
+      "Cache": "Cache local",
+      "CacheUsage": "{used} de {quota} · {files} arquivos",
+      "P2POn": "Ligado · {peers} pares · ↑ {up} ↓ {down}",
+      "PreloadProgress": "Ligado · {done} de {total} arquivos",
+      "Options": "Opções deste aparelho",
+      "OptionsHint": "Ficam salvas só neste navegador; não mudam nada para os outros jogadores nem para o mestre.",
+      "ClearCache": "Limpar cache deste aparelho",
+      "ClearCacheConfirm": "Apagar os arquivos otimizados guardados neste navegador? Eles são baixados de novo quando precisar.",
+      "ClearCacheDone": "Optimal Foundry: cache limpo ({size} liberados)."
+    },
+    "Cleanup": {
+      "Intro": "Os arquivos originais que o módulo já trocou por versões otimizadas continuam ocupando espaço. O Foundry não deixa módulos apagarem arquivos, então a limpeza esvazia cada original: o arquivo continua na pasta com o mesmo nome, mas fica com 0 bytes e para de ocupar espaço. Só entram arquivos da pasta deste mundo, já convertidos, que nada no mundo menciona mais (cenas, fichas, diários, macros, chat, configurações e compêndios do mundo) e cuja versão otimizada está íntegra. Outros mundos não são verificados: se algum deles usa arquivos da pasta deste mundo, não esvazie.",
+      "Progress": "Esvaziando {done} de {total}…",
+      "LastRun": "Última limpeza",
+      "LastSummary": "{emptied} esvaziado(s), {kept} mantido(s), {freed} liberados",
+      "Kept": "Mantidos",
+      "Candidates": "Originais que podem ser esvaziados",
+      "Analyze": "Analisar",
+      "NotAnalyzed": "Clique em Analisar para procurar originais que já podem ser esvaziados.",
+      "None": "Nenhum original pode ser esvaziado agora.",
+      "InUse": "{count} ainda em uso no mundo",
+      "OutsideWorld": "{count} fora da pasta do mundo",
+      "BrokenCopy": "{count} com versão otimizada ausente ou diferente",
+      "Gone": "{count} já vazio(s) ou removido(s)",
+      "SelectAll": "Selecionar todos",
+      "Original": "Original",
+      "Replacement": "Otimizado",
+      "CleanSelected": "Esvaziar selecionados ({count} · {size})",
+      "CleanAll": "Esvaziar todos ({count} · {size})",
+      "ConfirmTitle": "Esvaziar originais",
+      "Confirm": "Esvaziar {count} original(is) e liberar {size}? Cada arquivo fica com 0 bytes e o conteúdo não pode ser recuperado. Cenas, fichas e playlists continuam usando as versões otimizadas, mas Desfazer deixa de valer para esses arquivos. Antes de esvaziar, cada arquivo é conferido de novo.",
+      "ConfirmYes": "Esvaziar",
+      "Emptied": "original esvaziado",
+      "Reason": {
+        "notEligible": "não pode mais ser esvaziado",
+        "inUse": "voltou a ser mencionado no mundo",
+        "gone": "já estava vazio ou removido",
+        "changed": "mudou depois da conversão",
+        "noHash": "sem hash registrado",
+        "copyMissing": "versão otimizada não existe",
+        "copySize": "tamanho da versão otimizada não confere",
+        "copyHash": "conteúdo da versão otimizada não confere",
+        "uploadFailed": "o servidor recusou o arquivo vazio",
+        "error": "erro",
+        "unknownSize": "o servidor não informou o tamanho",
+        "uncertain": "não deu para confirmar se esvaziou; ficou marcado como esvaziado por segurança"
+      },
+      "NotCoordinator": "A limpeza só roda na sessão de mestre que coordena a otimização (o mestre de maior permissão, na aba aberta primeiro). Os botões ficam bloqueados aqui.",
+      "Lead": "Esvazia os originais já substituídos para liberar espaço. Não tem volta."
+    },
+    "Config": {
+      "Title": "Optimal Foundry: configurações",
+      "Menu": {
+        "Name": "Configurações",
+        "Label": "Abrir configurações",
+        "Hint": "Escolha um preset ou ajuste o que o módulo faz neste mundo. Só o mestre vê e decide; vale para todos os jogadores."
+      },
+      "Intro": "Comece por um preset. Ele só preenche o formulário: nada muda até você clicar em Salvar. Estas escolhas valem para o mundo todo; cada jogador ajusta só o próprio aparelho em \"Minha conexão\".",
+      "Presets": "Presets",
+      "Preset": {
+        "recommended": {
+          "Name": "Recomendado",
+          "Hint": "Equilíbrio entre qualidade e velocidade. Serve para quase todo mundo."
+        },
+        "saver": {
+          "Name": "Economia máxima",
+          "Hint": "Internet fraca ou muitos jogadores. Arquivos bem mais leves, com um pouco de perda de qualidade."
+        },
+        "quality": {
+          "Name": "Qualidade máxima",
+          "Hint": "Comprime pouco. Para quem tem internet boa e quer o máximo de detalhe."
+        },
+        "networkOnly": {
+          "Name": "Não mexer nos arquivos",
+          "Hint": "Mantém todos os arquivos como estão e usa só os recursos de rede."
+        },
+        "custom": {
+          "Name": "Personalizado",
+          "Hint": "Os valores atuais não batem com nenhum preset."
+        }
+      },
+      "Basic": "O essencial",
+      "Advanced": "Avançado",
+      "AdvancedHint": "Ajustes técnicos. Os valores padrão servem para quase todos; mexa só se souber o que está fazendo.",
+      "Group": {
+        "files": "Arquivos",
+        "network": "Rede e carregamento",
+        "p2p": "Compartilhamento e cache"
+      },
+      "NeedsReload": "Mudar isto recarrega o Foundry de todos.",
+      "Save": "Salvar",
+      "Reset": "Valores padrão",
+      "Saved": "{count} configuração(ões) salva(s).",
+      "Welcome": "Boas-vindas"
+    },
+    "Tracker": {
+      "Toggle": "Painel do Optimal Foundry",
+      "OpenDashboard": "Abrir o painel completo",
+      "Collapse": "Recolher",
+      "Expand": "Expandir",
+      "Hide": "Esconder (volta pelo botão na barra de Tokens)",
+      "PeersHint": "P2P: conexões abertas, enviado e recebido",
+      "PlayersTitle": "Jogadores",
+      "PreloadOff": "O pré-carregamento está desligado.",
+      "NoPlayers": "Nenhum jogador conectado.",
+      "ReadyCount": "{ready}/{total} prontos",
+      "P2POff": "P2P desligado",
+      "Setup": "Configurar",
+      "Review": "Revisar",
+      "NextTip": "Próximas cenas: {next} arquivos ({left} faltando)",
+      "PreloadTip": "Pré-carregado nesta sessão: {done}/{total}",
+      "Media": {
+        "Off": "A otimização de arquivos está desligada.",
+        "OtherGM": "Outra sessão de mestre está coordenando.",
+        "Converting": "Convertendo {name} · {queued} na fila",
+        "WaitingWelcome": "Esperando você escolher como o módulo funciona.",
+        "Review": "{count} arquivo(s) esperando sua aprovação.",
+        "Paused": "Pausado · {queued} na fila",
+        "Waiting": "Esperando a rede ficar livre · {queued} na fila",
+        "ExistingOff": "Arquivos existentes não são otimizados.",
+        "Done": "Tudo em dia · {saved}% menor",
+        "Idle": "Nada para converter agora."
+      },
+      "State": {
+        "stale": "Sem notícias há algum tempo",
+        "joining": "Entrando na cena agora",
+        "loading": "Baixando",
+        "ready": "Pronto",
+        "waiting": "Ainda baixando o que vem",
+        "queued": "Na fila para entrar (posição {position})",
+        "unknown": "Sem informação (pré-carregamento desligado neste aparelho ou ainda não pediu)"
+      },
+      "PlayersOtherGM": "Os jogadores aparecem na sessão de mestre que coordena.",
+      "PlayersHint": "A barra mostra quanto cada jogador já tem do que vem a seguir: as cenas que alguém está vendo, a cena ativa, as vizinhas e o que está tocando. Passe o mouse num jogador para ver os detalhes.",
+      "PlanHint": "Fila do pré-carregamento: agora · prováveis · depois"
+    },
+    "Welcome": {
+      "Title": "Bem-vindo ao Optimal Foundry",
+      "Intro": "O módulo deixa o jogo mais leve: converte imagens, vídeos e sons para formatos menores, baixa com antecedência o que os jogadores vão precisar e deixa os jogadores trocarem arquivos entre si. Escolha abaixo como ele funciona neste mundo. Dá para mudar tudo depois, nas configurações do módulo.",
+      "PresetTitle": "Qualidade dos arquivos",
+      "PresetHint": "Quanto comprimir. O recomendado não muda nada que dê para ver.",
+      "ModeTitle": "Arquivos que o mundo já tem",
+      "ModeHint": "Converter o que já existe troca as referências nas cenas, fichas e diários. Os originais continuam guardados e dá para desfazer.",
+      "Mode": {
+        "review": {
+          "Name": "Revisar antes",
+          "Hint": "O módulo lista o que seria convertido e só mexe no que você aprovar, no painel."
+        },
+        "auto": {
+          "Name": "Automático",
+          "Hint": "Converte tudo aos poucos, em segundo plano, sem atrapalhar o jogo."
+        },
+        "off": {
+          "Name": "Não mexer",
+          "Hint": "Os arquivos existentes ficam como estão."
+        }
+      },
+      "FeaturesTitle": "O que ligar",
+      "Switch": {
+        "optimizeUploads": "Imagens, vídeos e sons enviados de agora em diante já sobem leves, de qualquer pessoa.",
+        "preloadEnabled": "Cada jogador baixa com antecedência, com a rede parada, as cenas, playlists e imagens que vai precisar. Você não precisa marcar nada.",
+        "p2pEnabled": "Os jogadores passam arquivos entre si, aliviando a internet de quem hospeda."
+      },
+      "UploadHint": "Quanto a internet de quem hospeda o Foundry consegue enviar (velocidade de upload). O módulo usa isso para não engasgar a conexão.",
+      "TrackerName": "Mostrar o painel flutuante",
+      "TrackerHint": "Um painel pequeno, só para o mestre, com o que está sendo otimizado e se cada jogador já tem o que vem. Dá para arrastar, recolher e esconder; volta pelo botão na barra de Tokens.",
+      "Outro": "Enquanto esta tela não for concluída, nenhum arquivo existente é convertido. O pré-carregamento e o P2P já funcionam com o padrão.",
+      "Later": "Agora não",
+      "Start": "Começar",
+      "LaterNotice": "Tudo bem. A tela volta na próxima vez que você entrar; até lá, nenhum arquivo existente é convertido.",
+      "Done": "Pronto! O Optimal Foundry está configurado.",
+      "Lead": "Escolha como o módulo funciona neste mundo. Dá para mudar tudo depois.",
+      "KeepCurrent": "Personalizado",
+      "KeepCurrentHint": "Os valores de qualidade atuais não batem com nenhum preset. Sem marcar um preset, eles ficam como estão.",
+      "OutroShort": "Nada é convertido antes de você clicar em Começar."
+    }
+  }
+}

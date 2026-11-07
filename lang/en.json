@@ -1,0 +1,787 @@
+{
+  "OPTIMALFOUNDRY": {
+    "Settings": {
+      "mediaEnabled": {
+        "Name": "Optimize files",
+        "Hint": "Makes images, videos and sounds smaller so they load faster, with no visible loss. When off, the module does not touch any file."
+      },
+      "optimizeUploads": {
+        "Name": "Optimize what gets uploaded",
+        "Hint": "When anyone uploads an image, video or sound to Foundry, it is converted before it goes up and only the light version is kept. It applies to everyone, players included: the GM decides."
+      },
+      "backfillMode": {
+        "Name": "Files the world already has",
+        "Hint": "Automatic: converts everything the world already uses, little by little in the background, and points references at the light versions. Review first: lists what would be converted and only touches what you approve (Media tab of the dashboard). Don't optimize: leaves existing files as they are. Originals are kept; to empty them and free space, use the Cleanup tab.",
+        "Choices": {
+          "auto": "Automatic",
+          "review": "Review first",
+          "off": "Don't optimize"
+        }
+      },
+      "keepResolution": {
+        "Name": "Keep image and video dimensions",
+        "Hint": "Recommended. Only compresses, without shrinking dimensions, so nothing on the map gets misaligned. Turn off to shrink very large images and videos (limits under Advanced)."
+      },
+      "maxImageSide": {
+        "Name": "Largest image size (px)",
+        "Hint": "Only with \"Keep dimensions\" off. Images larger than this on their longest side are shrunk."
+      },
+      "maxVideoHeight": {
+        "Name": "Highest video resolution",
+        "Hint": "Only with \"Keep dimensions\" off. Videos above this are shrunk.",
+        "Choices": {
+          "720": "720p",
+          "1080": "1080p",
+          "1440": "1440p",
+          "2160": "2160p (4K)"
+        }
+      },
+      "imageQuality": {
+        "Name": "Image quality",
+        "Hint": "Higher is more faithful and heavier. 0.85 shows almost no visible difference and saves a lot. Flat-colour maps are stored losslessly when that comes out smaller."
+      },
+      "videoQuality": {
+        "Name": "Video quality",
+        "Hint": "Medium works for nearly everything, animated maps included. High only if you notice lost detail.",
+        "Choices": {
+          "low": "Low (lighter)",
+          "medium": "Medium (recommended)",
+          "high": "High (heavier)"
+        }
+      },
+      "videoStripAudio": {
+        "Name": "Remove sound from videos",
+        "Hint": "Animated maps and scenes rarely need sound. Removing it makes the file smaller."
+      },
+      "audioBitrate": {
+        "Name": "Music and sound quality",
+        "Hint": "128 kbps already sounds very good for soundtracks and effects. Lower saves more; higher is for demanding ears.",
+        "Choices": {
+          "64": "64 kbps",
+          "96": "96 kbps",
+          "128": "128 kbps",
+          "160": "160 kbps",
+          "192": "192 kbps"
+        }
+      },
+      "skipMp3BelowKbps": {
+        "Name": "Leave MP3 below (kbps) alone",
+        "Hint": "MP3 files that are already light stay as they are: converting would save almost nothing."
+      },
+      "minSavingsPct": {
+        "Name": "Minimum saving (%)",
+        "Hint": "If the new version is not at least this much smaller, the original is kept."
+      },
+      "convertAnimatedGif": {
+        "Name": "Turn animated GIFs into video",
+        "Hint": "Animated GIFs used as tiles or tokens become light videos with transparency. GIFs on sheets and portraits stay as they are."
+      },
+      "includeCompendia": {
+        "Name": "Include the world's compendiums",
+        "Hint": "Also optimizes images and sounds stored in this world's compendiums. Module and system compendiums are never changed."
+      },
+      "protectActiveScene": {
+        "Name": "Leave the scene in play alone",
+        "Hint": "Files of the active scene and sounds playing now are only swapped once they are no longer in use, so nothing flickers during the session."
+      },
+      "networkProfile": {
+        "Name": "How players reach you",
+        "Hint": "Automatic figures it out and suits almost everyone. \"Tunnel without CDN\" is for a quick Cloudflare Tunnel link, ngrok or an open router port. \"Behind a CDN\" is for your own domain on Cloudflare with caching. Custom unlocks the network options under Advanced.",
+        "Choices": {
+          "auto": "Automatic (recommended)",
+          "quickTunnel": "Tunnel without CDN",
+          "cdn": "Behind a CDN (Cloudflare)",
+          "custom": "Custom"
+        }
+      },
+      "hostUploadMbps": {
+        "Name": "Your internet upload speed (Mbps)",
+        "Hint": "The UPLOAD speed of the internet connection hosting Foundry (check a speed test). Used so the connection never chokes during play."
+      },
+      "preloadSharePct": {
+        "Name": "Share of upload for downloading ahead (%)",
+        "Hint": "Custom profile only. How much of your connection may be used to fetch upcoming scenes early; the rest stays free for play."
+      },
+      "maxConcurrentRequests": {
+        "Name": "Downloads at the same time",
+        "Hint": "Custom profile only. Limit of files downloading at once across all players. Free tunnels choke on too many."
+      },
+      "staggerJoin": {
+        "Name": "Players join one at a time",
+        "Hint": "Custom profile only. When several join together, each loads the scene in turn instead of all fighting over your connection."
+      },
+      "preloadEnabled": {
+        "Name": "Download upcoming scenes ahead of time",
+        "Hint": "While nobody is loading anything, players download the scenes that come next. Scene changes become nearly instant."
+      },
+      "idleSeconds": {
+        "Name": "Wait before fetching ahead (s)",
+        "Hint": "How long without any download before upcoming scenes start downloading."
+      },
+      "preloadMaxFileMB": {
+        "Name": "Largest file to fetch ahead (MB)",
+        "Hint": "Files larger than this are only downloaded when used."
+      },
+      "predecodeNext": {
+        "Name": "Prepare the next scene in memory",
+        "Hint": "Besides downloading, keeps the predicted next scene's images (the marked one; without a mark, its neighbour in the navigation bar or folder) ready in memory so the switch is instant. Uses more memory; only on computers with Medium performance or higher."
+      },
+      "preloadOnThisDevice": {
+        "Name": "Download upcoming scenes on this device",
+        "Hint": "Turn off on a slow or metered connection (a phone, for example). Starts off when the browser's data saver is on."
+      },
+      "preloadInclude": {
+        "Name": "Always preload",
+        "Hint": "Folders and playlists always included in preloading. Edit from the Optimal Foundry dashboard."
+      },
+      "preloadExclude": {
+        "Name": "Never preload",
+        "Hint": "Folders and playlists excluded from preloading. Edit from the Optimal Foundry dashboard."
+      },
+      "p2pEnabled": {
+        "Name": "Players share files with each other",
+        "Hint": "Whoever already has a file sends it straight to the other players, sparing your connection. Needs HTTPS. With direct connections, players in the world can see each other's IP address."
+      },
+      "serviceWorker": {
+        "Name": "Keep files in the browser",
+        "Hint": "Each player keeps the light versions in their browser and does not download them again next session. Needs HTTPS (or localhost)."
+      },
+      "iceServers": {
+        "Name": "Connection servers (STUN/TURN)",
+        "Hint": "Addresses players use to find each other. The default works in most homes. Only change it if you know what a TURN server is."
+      },
+      "p2pMinFileKB": {
+        "Name": "Smallest file to share (KB)",
+        "Hint": "Smaller files always come from the server: opening a player-to-player connection is not worth it."
+      },
+      "p2pTimeoutSec": {
+        "Name": "Wait for other players (s)",
+        "Hint": "How long to wait for another player before downloading the file from the server."
+      },
+      "p2pParticipate": {
+        "Name": "Share files with the other players",
+        "Hint": "Turn off on a limited connection. With direct connections the other players in the world see this browser's IP address; turning it off avoids that."
+      },
+      "p2pUploadCapMBps": {
+        "Name": "Fastest sending to other players (MB/s)",
+        "Hint": "Limits how much of your connection is used to send files to other players."
+      },
+      "cacheQuotaMB": {
+        "Name": "Space for stored files (MB)",
+        "Hint": "How much space stored files may take in this browser. The least used leave first when it fills up."
+      },
+      "library": {
+        "Name": "Optimization library",
+        "Hint": "Internal record of every original and its optimized copy. Do not edit by hand."
+      },
+      "nextScenes": {
+        "Name": "Next scenes",
+        "Hint": "Scenes the GM marked to preload first."
+      },
+      "cdnStatus": {
+        "Name": "CDN status",
+        "Hint": "Internal result of the last CDN detection."
+      }
+    },
+    "Dashboard": {
+      "Title": "Optimal Foundry",
+      "GMOnly": "Only the GM can open the Optimal Foundry dashboard.",
+      "ApiNotReady": "Module still loading",
+      "Menu": {
+        "Name": "Optimal Foundry dashboard",
+        "Label": "Open dashboard",
+        "Hint": "Follow media optimization, network and P2P, and choose what to preload."
+      },
+      "Tabs": {
+        "media": "Media",
+        "network": "Network",
+        "p2p": "P2P",
+        "preload": "Preloading",
+        "cleanup": "Cleanup"
+      },
+      "Common": {
+        "Yes": "Yes",
+        "No": "No",
+        "On": "On",
+        "Off": "Off",
+        "Unavailable": "Unavailable"
+      },
+      "Kind": {
+        "image": "Image",
+        "video": "Video",
+        "audio": "Audio"
+      },
+      "Status": {
+        "done": "Optimized",
+        "skipped": "Skipped",
+        "failed": "Failed"
+      },
+      "Phase": {
+        "idle": "Idle",
+        "scanning": "Scanning the world",
+        "converting": "Converting",
+        "rewriting": "Updating references"
+      },
+      "Media": {
+        "Library": "Library",
+        "OriginalSize": "Original size",
+        "OptimizedSize": "Optimized size",
+        "Saved": "Saved",
+        "Capabilities": "This browser converts:",
+        "Backfill": "Existing assets",
+        "State": "State",
+        "Running": "Running",
+        "Paused": "Paused",
+        "Stopped": "Stopped",
+        "Queued": "Queued",
+        "SessionTotals": "This run",
+        "Deferred": "Deferred (in use now)",
+        "Scan": "Scan world",
+        "Start": "Start",
+        "Pause": "Pause",
+        "UndoAll": "Undo all",
+        "UndoAllTitle": "Undo every optimization?",
+        "UndoAllConfirm": "Every document goes back to its original file. Restored files will not be optimized again automatically (use \"Optimize again\" for that); new media follows the chosen mode (automatic, review first or don't optimize). Optimized files stay on the server (Foundry cannot delete files). Continue?",
+        "UndoEntry": "Revert to original",
+        "Entries": "Files",
+        "FilterLabel": "Filter files",
+        "Filter": {
+          "failed": "Failed",
+          "skipped": "Skipped",
+          "done": "Optimized",
+          "all": "All"
+        },
+        "File": "File",
+        "Kind": "Type",
+        "Status": "Status",
+        "Detail": "Detail",
+        "Attempts": "{count} attempt(s)",
+        "NoEntries": "No files in this list.",
+        "Truncated": "Showing the {shown} most recent of {total}.",
+        "Unavailable": "Background optimization is unavailable (media turned off or failed to start; see the console).",
+        "NotCoordinator": "Only one GM session coordinates background optimization (the GM with the highest role, in the tab opened first). Controls are locked here.",
+        "Retry": "Retry",
+        "Reoptimize": "Optimize again",
+        "RetryFiltered": "Retry the files in this list",
+        "RetryFilteredConfirm": "Retry {count} files? Restored files are optimized again and their references re-pointed; the others go back to the conversion queue.",
+        "Mode": {
+          "auto": "Automatic mode: everything the world uses is converted little by little, without asking.",
+          "review": "Review first mode: nothing is converted without your approval. What waits for you is listed right below.",
+          "off": "Optimizing existing files is off. Only what is uploaded from now on is optimized (if that option is on)."
+        },
+        "WaitingWelcome": "Nothing is converted until someone finishes the module's welcome screen.",
+        "WaitingWelcomeShort": "Waiting for the welcome screen"
+      },
+      "Network": {
+        "Profile": "Profile",
+        "Effective": "In use",
+        "Chosen": "chosen",
+        "MaxConcurrent": "Concurrent downloads",
+        "HostUpload": "Server upload",
+        "PreloadRate": "Preload bandwidth",
+        "StaggerJoin": "Staggered join",
+        "P2P": "P2P",
+        "IdleAfter": "Idle after",
+        "MaxFile": "Largest preloaded file",
+        "Cdn": "CDN",
+        "DetectCdn": "Detect again",
+        "CdnDetected": "Caching CDN",
+        "CdnOn": "CDN active",
+        "CdnOff": "no CDN",
+        "CdnHeader": "cf-cache-status header",
+        "CheckedAt": "Checked at",
+        "LocalHint": "On localhost the CDN is measured by a connected player. Click Detect again with a player online.",
+        "Preload": "Preloading",
+        "PreloadActive": "Active",
+        "PreloadPaused": "Paused (urgent load)",
+        "Progress": "Progress",
+        "QueueLength": "Queued items",
+        "Current": "Now",
+        "Clients": "Connected players",
+        "ThisClient": "This browser",
+        "Player": "Player",
+        "Inflight": "downloading",
+        "Rate": "Speed",
+        "SceneReady": "Scene ready",
+        "Idle": "Idle",
+        "P2PCell": "↑ {up} ↓ {down} · peers: {peers}",
+        "NoClients": "No player data yet.",
+        "Unavailable": "The network manager is unavailable (see the console).",
+        "MeasuredBy": "measured by {by} at {origin}",
+        "NextReady": "Ready for what's next",
+        "QueuePos": "queue #{position}",
+        "Joining": "loading now",
+        "PreloadServing": "Serving the queue (this browser does not preload)"
+      },
+      "P2P": {
+        "ServiceWorker": "Local cache (Service Worker)",
+        "SwActive": "Cache active",
+        "SwInactive": "No cache",
+        "Supported": "Supported",
+        "Registered": "Registered",
+        "Controlling": "Controlling the page",
+        "Scope": "Scope",
+        "Cache": "Cached files",
+        "Swarm": "Player network",
+        "PeersCount": "peers: {count}",
+        "Sent": "Sent",
+        "Received": "Received",
+        "Files": "files",
+        "Failures": "Failures",
+        "Participate": "This browser takes part",
+        "UploadCap": "cap",
+        "Peers": "Peers",
+        "Connection": "Connection",
+        "Rtt": "Latency",
+        "NoPeers": "No peers connected.",
+        "Insecure": "This page is neither HTTPS nor localhost: the browser blocks the local cache and P2P.",
+        "State": {
+          "new": "New",
+          "connecting": "Connecting",
+          "connected": "Connected",
+          "disconnected": "Disconnected",
+          "failed": "Failed",
+          "closed": "Closed",
+          "banned": "Banned"
+        }
+      },
+      "Preload": {
+        "NextScenes": "Put first (optional)",
+        "NextScenesHint": "Mark a scene only if you want it before everything else, for example the next one in the session. You can also mark it from the Scenes tab's context menu. A scene leaves the list when it is activated.",
+        "NoNext": "No scenes marked.",
+        "ChooseScene": "Choose a scene",
+        "Missing": "not found",
+        "Rules": "Folders and playlists",
+        "RulesHint": "\"Always\" goes to the front, along with what is likely. \"Never\" stays out of the queue.",
+        "Include": "Always preload",
+        "Exclude": "Never preload",
+        "Empty": "Nothing here.",
+        "ChooseRule": "Choose a folder or playlist",
+        "Add": "Add",
+        "Remove": "Remove",
+        "SceneFolders": "Scene folders",
+        "PlaylistFolders": "Playlist folders",
+        "Playlists": "Playlists",
+        "SceneFolder": "scene folder",
+        "PlaylistFolder": "playlist folder",
+        "Playlist": "playlist",
+        "Disabled": "Preloading is turned off in the settings. The choices below are kept for when you turn it on.",
+        "Auto": "Automatic prediction",
+        "AutoHint": "The module decides on its own what each player downloads while the network is idle, most likely first: the scenes players are viewing, the rest of the active scene and its playlist, what is playing, the neighbouring scenes in the navigation bar and in the folder, teleport destinations, then the other scenes in the bar, the players' characters, and finally the rest of the world (the other scenes and playlists, hidden ones too, and the images of journals players can see). The bandwidth set aside for it, P2P between players and each browser's storage decide how far it gets. You do not need to mark anything.",
+        "Tier": {
+          "0": "Now",
+          "1": "Likely",
+          "2": "This session",
+          "3": "Later"
+        },
+        "TierHint": {
+          "0": "Marked scenes, the scene the GM is preparing and the scenes players are viewing.",
+          "1": "The rest of the active scene, what is playing, the neighbouring scenes, teleport destinations and what is in Always preload.",
+          "2": "The other scenes in the navigation bar, the playlists linked to the scenes above and the players' character art.",
+          "3": "The rest of the world: every other scene and playlist, even those players cannot see yet, and the images of journals they can see."
+        },
+        "What": "What",
+        "When": "When",
+        "Why": "Why",
+        "Files": "Files",
+        "Size": "Size",
+        "Group": {
+          "actors": "Players' characters",
+          "journals": "Journals players can see"
+        },
+        "Reason": {
+          "marked": "marked by you",
+          "gmViewing": "the GM has it open",
+          "playerViewing": "a player is viewing it",
+          "active": "active scene",
+          "playing": "playing now",
+          "navigation": "neighbour in the navigation bar",
+          "teleport": "teleport destination of the active scene",
+          "folder": "neighbour in the folder",
+          "include": "in Always preload",
+          "linked": "playlist of a scene above",
+          "navigationBar": "in the navigation bar",
+          "characters": "sheets and tokens",
+          "rest": "rest of the world",
+          "journals": "images and videos"
+        },
+        "More": "… and {count} more.",
+        "NothingQueued": "Nothing queued right now: everything the world uses is already planned or being converted.",
+        "NotCoordinator": "The queue is built by the coordinating GM session. Open the dashboard there to see the prediction."
+      },
+      "Scene": {
+        "Mark": "Mark as next scene",
+        "Unmark": "Unmark",
+        "Indicator": "Next scene (preloaded first)"
+      },
+      "Notify": {
+        "ActionFailed": "Optimal Foundry: the action failed: {error}",
+        "Unavailable": "Optimal Foundry: this feature is not available right now.",
+        "ScanDone": "Optimal Foundry: {paths} referenced files · {convert} to convert ({image} images, {audio} audio, {video} videos) · {rewrite} to re-point.",
+        "ScanFailed": "Optimal Foundry: the scan failed: {error}",
+        "Retried": "Optimal Foundry: {count} files queued again."
+      },
+      "Scan": {
+        "Title": "What the world uses",
+        "Intro": "Every media file the world uses (scenes, actors, items, journals, playlists and world compendiums), wherever it comes from: the world folder, modules, the system or Foundry itself. \"Already light\" means WebP, AVIF, Ogg and Opus: they are already in the final format, so there is nothing to convert. Hover the columns to see what each one means.",
+        "NotScanned": "This world has not been scanned yet. Click Scan world.",
+        "LastScan": "Last scan: {at} · {total} files",
+        "Total": "Total",
+        "Origin": {
+          "label": "Comes from",
+          "world": "World folder",
+          "module": "Modules",
+          "system": "System",
+          "core": "Foundry (icons and sounds)",
+          "data": "Other Data folders",
+          "otherWorld": "Other worlds' folders"
+        },
+        "OriginHint": {
+          "world": "Files inside worlds/<this world>/.",
+          "module": "Files from installed modules (modules/…). Optimized versions go to the optimal-foundry/ folder in Data, because a module's folder is replaced when it updates.",
+          "system": "Files from the game system (systems/…). Optimized versions go to the optimal-foundry/ folder in Data.",
+          "core": "Icons, sounds and images that ship with Foundry (icons/, sounds/, ui/…). Almost all are already WebP or Ogg.",
+          "data": "Files in other Data folders, outside worlds/, modules/ and systems/ (for example an assets/ folder of yours).",
+          "otherWorld": "Files stored in another world's folder that this world also uses."
+        },
+        "Outcome": {
+          "optimized": "Optimized",
+          "light": "Already light",
+          "queued": "Queued",
+          "skipped": "Skipped",
+          "failed": "Failed",
+          "review": "Waiting for you"
+        },
+        "OutcomeHint": {
+          "optimized": "They have an optimized version and the world uses it.",
+          "light": "Already WebP, AVIF, Ogg or Opus. Nothing to do.",
+          "queued": "Still to be converted, or converted with the reference not yet pointed at the optimized copy.",
+          "skipped": "Left as they are; the reason is in the file list below (Skipped filter).",
+          "failed": "Could not be converted after several attempts; see the Failed filter.",
+          "review": "Not converted because they wait for your approval (Review first mode) or because optimizing existing files is off."
+        },
+        "External": "{count} file(s) live at another address (S3, a CDN or another site) and are not read: the module only converts files the Foundry server itself stores. Examples: {examples}",
+        "Vector": "{count} SVG image(s) stay as they are: they are vector images and already light.",
+        "Packs": "{packs} module and system compendium(s) ({documents} documents) are not read. They belong to the module or system and would go back to the original on its next update, so the module leaves them alone. What you import into the world (scenes, actors, journals) is read and optimized.",
+        "PacksAll": "{packs} compendium(s) ({documents} documents) are not read, including the world's own, because \"Include the world's compendiums\" is off. Module and system compendiums are never read: they would go back to the original on the next update. What you import into the world is read and optimized."
+      },
+      "Review": {
+        "Title": "Waiting for your approval",
+        "Intro": "These files would be converted, and the scenes, sheets and journals that use them would point at the light version. Check what may be optimized. What you leave as it is no longer shows here (Try again, in the file list, brings it back).",
+        "UsedIn": "Used in",
+        "Preview": "View the file",
+        "ApproveSelected": "Optimize checked ({count})",
+        "DeclineSelected": "Leave as it is ({count})",
+        "ApproveAll": "Optimize all ({count})",
+        "ApproveAllTitle": "Optimize all",
+        "ApproveAllConfirm": "Convert the {count} files in the list? References move to the light versions; you can undo from the file list or with Undo all.",
+        "Approved": "{count} file(s) approved; conversion starts in the background.",
+        "Declined": "{count} file(s) will stay as they are."
+      }
+    },
+    "Reasons": {
+      "tooLarge": "larger than 16383 px (WebP limit)",
+      "animatedGifImageField": "animated GIF used as an image; kept",
+      "missing": "file not found on the server",
+      "noSavings": "converting would not save enough",
+      "alreadyOptimized": "already in an optimized format",
+      "unsupported": "unsupported format",
+      "notCapable": "this browser cannot convert it",
+      "decodeError": "the file could not be read",
+      "encodeError": "conversion failed",
+      "uploadFailed": "uploading the optimized copy failed",
+      "rewriteFailed": "updating references failed",
+      "insecureContext": "page is not HTTPS",
+      "unsupportedBrowser": "browser not supported",
+      "disabled": "turned off in the settings",
+      "registrationFailed": "Service Worker registration failed",
+      "restored": "restored to the original by the GM; it will not be optimized again automatically",
+      "interrupted": "the conversion was interrupted (the browser crashed or closed)",
+      "notPersisted": "the library could not be saved; references were not changed",
+      "scanFailed": "scanning the world failed",
+      "workerStopped": "background optimization stopped after an error",
+      "declined": "You chose to leave it as it is"
+    },
+    "Library": {
+      "Finished": "Background optimization finished: {done} converted, {skipped} skipped, {failed} failed.",
+      "NotCapable": "This browser cannot convert {kind}. Open the world in the Foundry app or in Chrome/Edge to optimize these files.",
+      "UndoDone": "Optimization undone: {reverted} files point to their originals again.",
+      "UndoKept": "{kept} files were not undone (the original is missing or an update failed). See the console.",
+      "Kind": {
+        "image": "images",
+        "video": "videos",
+        "audio": "audio files"
+      },
+      "UploadFailed": "Could not upload the optimized file to the server",
+      "ConvertFailed": "Conversion failed",
+      "UndoPaused": "Background optimization is paused. Press Start in the dashboard to resume it."
+    },
+    "Media": {
+      "Converting": "Optimizing {name}… Click to skip and upload the original.",
+      "Optimized": "{name} optimized: {saved}% smaller.",
+      "ConvertFailed": "Could not optimize {name}. The original was uploaded.",
+      "NotCapable": "This browser cannot convert {name}. The original was uploaded and the GM will optimize it in the background.",
+      "UploadTooLarge": "{name} is {size} MB. The Cloudflare tunnel limits uploads to 100 MB, so this upload may fail. Upload from the server machine or make the file smaller.",
+      "Reason": {
+        "notCapable": "Browser cannot convert this format",
+        "alreadyOptimized": "Already in an optimized format",
+        "vector": "Vector images (SVG) are not converted",
+        "unsupported": "Unsupported format",
+        "undecodable": "The browser could not read the file",
+        "tooLarge": "Larger than 16383 px per side (WebP limit)",
+        "noSavings": "The optimized version was not small enough",
+        "lowBitrate": "Low-bitrate MP3; converting is not worth it",
+        "missing": "File not found on the server",
+        "noVideoTrack": "The file has no video track",
+        "noAudioTrack": "The file has no audio track",
+        "audioNotEncodable": "The video's audio could not be converted",
+        "animatedGif": "Animated GIF kept as-is on upload",
+        "animatedGifImageField": "Animated GIF used in an image field; kept as-is",
+        "animatedGifDisabled": "Animated GIF conversion is turned off"
+      },
+      "OptimizedBatch": "{count} files optimized, {mb} MB saved."
+    },
+    "Network": {
+      "WaitingTurn": "Waiting for your turn to load the scene (position {position} in the queue)."
+    },
+    "Cdn": {
+      "Found": "Caching CDN detected (cf-cache-status: {status}). The automatic profile now uses the CDN.",
+      "NotFound": "No caching CDN detected (result: {status}). The automatic profile uses the tunnel limits.",
+      "Status": {
+        "HIT": "Cached (HIT)",
+        "MISS": "Not cached yet (MISS)",
+        "EXPIRED": "Cache expired (EXPIRED)",
+        "REVALIDATED": "Cache revalidated (REVALIDATED)",
+        "UPDATING": "Cache updating (UPDATING)",
+        "STALE": "Stale cache (STALE)",
+        "DYNAMIC": "Proxied without caching (DYNAMIC)",
+        "BYPASS": "CDN bypasses the cache (BYPASS)",
+        "none": "No CDN",
+        "local": "Local address: no CDN",
+        "noProbe": "No file available to test",
+        "error": "Test failed"
+      },
+      "NoPlayer": "Optimal Foundry: no player is online to measure the CDN. Try again with a player connected.",
+      "ProbeFailed": "Optimal Foundry: the CDN measurement failed. See the console."
+    },
+    "Sw": {
+      "Version": "Version",
+      "OutdatedBadge": "outdated",
+      "Outdated": "optimal-foundry-sw.js in the Data root is outdated (v{version}, expected v{expected}). Copy modules/optimal-foundry/sw.js there again.",
+      "Persisted": "Persistent storage"
+    },
+    "Preload": {
+      "GMOnly": "Only the GM can mark upcoming scenes."
+    },
+    "P2P": {
+      "SwReason": {
+        "insecure": "The Service Worker needs HTTPS or localhost.",
+        "unsupported": "This browser has no Service Worker or Cache Storage.",
+        "scopeDenied": "The server does not send \"Service-Worker-Allowed: /\". Copy sw.js to the Data root as optimal-foundry-sw.js.",
+        "notFound": "Could not download the module's sw.js.",
+        "notActive": "The Service Worker registered but did not activate in time. Reload the page.",
+        "error": "The Service Worker failed to start. See the console."
+      },
+      "SwarmReason": {
+        "optOut": "You turned P2P off in this browser.",
+        "insecure": "P2P needs HTTPS or localhost.",
+        "noWebRTC": "This browser has no WebRTC.",
+        "noCrypto": "This browser has no Web Crypto to verify files.",
+        "noCache": "This browser has no Cache Storage.",
+        "error": "P2P failed to start. See the console.",
+        "local": "This browser reaches the server locally; it neither seeds nor downloads by P2P (its upload would share the server's link)."
+      },
+      "PeerState": {
+        "connecting": "Connecting",
+        "open": "Connected",
+        "failed": "Failed",
+        "closed": "Closed"
+      },
+      "LastFailure": "Last failure: {name}, {reason} (local: {local}; remote: {remote})"
+    },
+    "Connection": {
+      "Title": "My connection",
+      "Menu": {
+        "Name": "My connection",
+        "Label": "Open",
+        "Hint": "See how this device loads the game (local cache, P2P, preloading) and change its own options."
+      },
+      "Status": "This device",
+      "Cache": "Local cache",
+      "CacheUsage": "{used} of {quota} · {files} files",
+      "P2POn": "On · {peers} peers · ↑ {up} ↓ {down}",
+      "PreloadProgress": "On · {done} of {total} files",
+      "Options": "Options for this device",
+      "OptionsHint": "Saved in this browser only; other players and the GM are not affected.",
+      "ClearCache": "Clear this device's cache",
+      "ClearCacheConfirm": "Delete the optimized files saved in this browser? They are downloaded again when needed.",
+      "ClearCacheDone": "Optimal Foundry: cache cleared ({size} freed)."
+    },
+    "Cleanup": {
+      "Intro": "Originals the module already replaced with optimized versions still take up space. Foundry does not let modules delete files, so the cleanup empties each original: the file stays in its folder under the same name, but becomes 0 bytes and stops taking space. Only files in this world's folder qualify: already converted, mentioned by nothing in the world anymore (scenes, sheets, journals, macros, chat, settings and world compendiums), and with an intact optimized version. Other worlds are not checked: if one of them uses files from this world's folder, do not empty them.",
+      "Progress": "Emptying {done} of {total}…",
+      "LastRun": "Last cleanup",
+      "LastSummary": "{emptied} emptied, {kept} kept, {freed} freed",
+      "Kept": "Kept",
+      "Candidates": "Originals that can be emptied",
+      "Analyze": "Analyze",
+      "NotAnalyzed": "Click Analyze to look for originals that can be emptied.",
+      "None": "No original can be emptied right now.",
+      "InUse": "{count} still in use in the world",
+      "OutsideWorld": "{count} outside the world folder",
+      "BrokenCopy": "{count} with a missing or different optimized version",
+      "Gone": "{count} already empty or removed",
+      "SelectAll": "Select all",
+      "Original": "Original",
+      "Replacement": "Optimized",
+      "CleanSelected": "Empty selected ({count} · {size})",
+      "CleanAll": "Empty all ({count} · {size})",
+      "ConfirmTitle": "Empty originals",
+      "Confirm": "Empty {count} original(s) and free {size}? Each file becomes 0 bytes and its content cannot be recovered. Scenes, sheets and playlists keep using the optimized versions, but Undo no longer applies to these files. Each file is checked again before it is emptied.",
+      "ConfirmYes": "Empty",
+      "Emptied": "original emptied",
+      "Reason": {
+        "notEligible": "can no longer be emptied",
+        "inUse": "mentioned in the world again",
+        "gone": "already empty or removed",
+        "changed": "changed after conversion",
+        "noHash": "no recorded hash",
+        "copyMissing": "optimized version is missing",
+        "copySize": "optimized version size does not match",
+        "copyHash": "optimized version content does not match",
+        "uploadFailed": "the server refused the empty file",
+        "error": "error",
+        "unknownSize": "the server did not report the size",
+        "uncertain": "could not confirm it was emptied; marked as emptied to be safe"
+      },
+      "NotCoordinator": "The cleanup only runs in the GM session that coordinates optimization (the GM with the highest role, in the tab opened first). The buttons are locked here.",
+      "Lead": "Empties the originals already replaced, to free space. It cannot be undone."
+    },
+    "Config": {
+      "Title": "Optimal Foundry: settings",
+      "Menu": {
+        "Name": "Settings",
+        "Label": "Open settings",
+        "Hint": "Pick a preset or adjust what the module does in this world. Only the GM sees and decides; it applies to every player."
+      },
+      "Intro": "Start with a preset. It only fills in the form: nothing changes until you click Save. These choices apply to the whole world; each player adjusts only their own device in \"My connection\".",
+      "Presets": "Presets",
+      "Preset": {
+        "recommended": {
+          "Name": "Recommended",
+          "Hint": "Balance between quality and speed. Suits almost everyone."
+        },
+        "saver": {
+          "Name": "Maximum saving",
+          "Hint": "Weak connection or many players. Much lighter files, with some quality loss."
+        },
+        "quality": {
+          "Name": "Maximum quality",
+          "Hint": "Light compression. For good connections and the most detail."
+        },
+        "networkOnly": {
+          "Name": "Leave files alone",
+          "Hint": "Keeps every file as it is and uses only the network features."
+        },
+        "custom": {
+          "Name": "Custom",
+          "Hint": "The current values match no preset."
+        }
+      },
+      "Basic": "Essentials",
+      "Advanced": "Advanced",
+      "AdvancedHint": "Technical options. The defaults suit almost everyone; only change them if you know what you are doing.",
+      "Group": {
+        "files": "Files",
+        "network": "Network and loading",
+        "p2p": "Sharing and cache"
+      },
+      "NeedsReload": "Changing this reloads Foundry for everyone.",
+      "Save": "Save",
+      "Reset": "Default values",
+      "Saved": "{count} setting(s) saved.",
+      "Welcome": "Welcome"
+    },
+    "Tracker": {
+      "Toggle": "Optimal Foundry panel",
+      "OpenDashboard": "Open the full dashboard",
+      "Collapse": "Collapse",
+      "Expand": "Expand",
+      "Hide": "Hide (bring it back from the Tokens controls)",
+      "PeersHint": "P2P: open connections, sent and received",
+      "PlayersTitle": "Players",
+      "PreloadOff": "Preloading is off.",
+      "NoPlayers": "No players connected.",
+      "ReadyCount": "{ready}/{total} ready",
+      "P2POff": "P2P off",
+      "Setup": "Set up",
+      "Review": "Review",
+      "NextTip": "Next scenes: {next} files ({left} left)",
+      "PreloadTip": "Preloaded this session: {done}/{total}",
+      "Media": {
+        "Off": "File optimization is off.",
+        "OtherGM": "Another GM session is coordinating.",
+        "Converting": "Converting {name} · {queued} queued",
+        "WaitingWelcome": "Waiting for you to choose how the module works.",
+        "Review": "{count} file(s) waiting for your approval.",
+        "Paused": "Paused · {queued} queued",
+        "Waiting": "Waiting for the network to be free · {queued} queued",
+        "ExistingOff": "Existing files are not optimized.",
+        "Done": "All caught up · {saved}% smaller",
+        "Idle": "Nothing to convert right now."
+      },
+      "State": {
+        "stale": "No news for a while",
+        "joining": "Joining the scene now",
+        "loading": "Downloading",
+        "ready": "Ready",
+        "waiting": "Still downloading what's next",
+        "queued": "Waiting to join (position {position})",
+        "unknown": "No information (preloading off on that device, or it has not asked yet)"
+      },
+      "PlayersOtherGM": "Players show up in the coordinating GM session.",
+      "PlayersHint": "The bar shows how much of what comes next each player already has: the scenes someone is viewing, the active scene, its neighbours and what is playing. Hover a player for details.",
+      "PlanHint": "Preload queue: now · likely · later"
+    },
+    "Welcome": {
+      "Title": "Welcome to Optimal Foundry",
+      "Intro": "The module makes the game lighter: it converts images, videos and sounds to smaller formats, downloads ahead what players will need and lets players share files with each other. Choose below how it works in this world. You can change everything later in the module's settings.",
+      "PresetTitle": "File quality",
+      "PresetHint": "How much to compress. Recommended changes nothing you can see.",
+      "ModeTitle": "Files the world already has",
+      "ModeHint": "Converting what already exists changes the references in scenes, sheets and journals. Originals are kept and it can be undone.",
+      "Mode": {
+        "review": {
+          "Name": "Review first",
+          "Hint": "The module lists what would be converted and only touches what you approve, in the dashboard."
+        },
+        "auto": {
+          "Name": "Automatic",
+          "Hint": "Converts everything little by little in the background, without getting in the way of the game."
+        },
+        "off": {
+          "Name": "Leave them",
+          "Hint": "Existing files stay as they are."
+        }
+      },
+      "FeaturesTitle": "What to turn on",
+      "Switch": {
+        "optimizeUploads": "Images, videos and sounds uploaded from now on go up light, from anyone.",
+        "preloadEnabled": "Each player downloads ahead, while the network is idle, the scenes, playlists and images they will need. You do not need to mark anything.",
+        "p2pEnabled": "Players pass files to each other, easing the host's internet connection."
+      },
+      "UploadHint": "How much the internet of whoever hosts Foundry can send (upload speed). The module uses it so the connection does not choke.",
+      "TrackerName": "Show the floating panel",
+      "TrackerHint": "A small panel, GM only, with what is being optimized and whether each player already has what comes next. Drag it, collapse it or hide it; it comes back from the Tokens controls.",
+      "Outro": "Until this screen is finished, no existing file is converted. Preloading and P2P already run with the defaults.",
+      "Later": "Not now",
+      "Start": "Start",
+      "LaterNotice": "Fine. The screen comes back the next time you enter; until then, no existing file is converted.",
+      "Done": "Done! Optimal Foundry is set up.",
+      "Lead": "Choose how the module works in this world. You can change everything later.",
+      "KeepCurrent": "Custom",
+      "KeepCurrentHint": "The current quality values match no preset. Without picking a preset, they stay as they are.",
+      "OutroShort": "Nothing is converted until you click Start."
+    }
+  }
+}
