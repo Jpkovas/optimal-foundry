@@ -1,4 +1,4 @@
-# Builds the Foundry package for a GitHub release and attaches module.json + module.zip to it.
+# Tests, then builds the Foundry package for a GitHub release and attaches module.json + module.zip to it.
 # With the FOUNDRY_RELEASE_TOKEN secret (from the package page on foundryvtt.com), it also registers the version
 # in Foundry's package library through the Package Release API.
 name: Release
@@ -28,9 +28,16 @@ jobs:
           [ "$download" = "https://github.com/$REPO/releases/download/$TAG/module.zip" ] || { echo "::error::module.json download is $download"; exit 1; }
           [ "$manifest" = "https://github.com/$REPO/releases/latest/download/module.json" ] || { echo "::error::module.json manifest is $manifest"; exit 1; }
 
+      - uses: actions/setup-node@v4
+        with:
+          node-version: lts/*
+
+      - name: Run the tests
+        run: node --test "test/*.test.mjs"
+
       - name: Build module.zip (only what Foundry loads)
         run: |
-          zip -r -X module.zip module.json LICENSE README.md sw.js lang scripts styles templates vendor -x '*.DS_Store'
+          zip -r -X module.zip module.json LICENSE README.md sw.js optimal-foundry-sw.js lang scripts styles templates vendor -x '*.DS_Store' 'vendor/*.d.ts'
           unzip -l module.zip
 
       - name: Attach to the release

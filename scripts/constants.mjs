@@ -6,7 +6,7 @@ export const MODULE_PATH = `modules/${MODULE_ID}`;
 export const OPTIMIZED_MARKER = ".of-";
 export const OPTIMIZED_RE = /\.of-([0-9a-f]{8})\.[a-z0-9]+$/i;
 
-/** Data-root folder that receives optimized copies of files living in read-only places (modules/, systems/). */
+/** Folder, inside the world's folder, that receives optimized copies of files living in read-only places (modules/, systems/, core folders, other hosts). */
 export const MIRROR_ROOT = "optimal-foundry";
 
 export const EXT = {

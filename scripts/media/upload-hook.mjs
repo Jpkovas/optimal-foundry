@@ -2,13 +2,16 @@ import { MODULE_ID, isOptimizedPath, log, warn } from "../constants.mjs";
 import { getSetting } from "../settings.mjs";
 import { emit, activeGM, isCoordinator, MSG } from "../socket.mjs";
 import { putEntries, normalizePath } from "../library.mjs";
-import { isLocalOrigin } from "../net/cdn.mjs";
-import { optimizeFile } from "./converter.mjs";
+import { isLocalOrigin, behindCloudflare } from "../net/cdn.mjs";
+import { optimizeFile, conversionBlocker } from "./converter.mjs";
 import { REASON, kindFromName } from "./formats.mjs";
 
 const TARGET = "foundry.applications.apps.FilePicker.upload";
-/** Cloudflare rejects request bodies over 100 MB; warn a little before that. */
-const TUNNEL_LIMIT_BYTES = 95_000_000;
+/** Cloudflare rejects request bodies over 100 MB (form fields included, so stay a little under it). */
+export const TUNNEL_LIMIT_BYTES = 100_000_000;
+/** Warn a little before the limit. */
+const TUNNEL_WARN_BYTES = 95_000_000;
+const MB = 1_048_576;
 const PROGRESS_DELAY_MS = 1500;
 /** A conversion that reports no progress for this long is abandoned and the original is uploaded. */
 const STALL_MS = 90_000;
@@ -20,6 +23,12 @@ const SUMMARY_DELAY_MS = 3000;
  * CONFIG.ux.FilePicker is a subclass (file-picker.mjs:436), so both the original and the converted file are marked.
  */
 const handled = new WeakSet();
+
+/**
+ * Whether this browser's uploads go through Cloudflare, which caps them at 100 MB: the CDN probe saw Cloudflare and
+ * this page is not on a local origin (a game master on the server machine uploads straight to Foundry).
+ */
+export const tunnelLimited = () => behindCloudflare() && !isLocalOrigin();
 
 /** Let a module-internal upload (the cleanup's empty files) through without conversion or bookkeeping. */
 export function skipUploadHook(file) {
@@ -43,8 +52,8 @@ async function uploadWrapper(wrapped, source, path, file, body = {}, options = {
   const notify = options?.notify ?? true;
   const plan = await prepare(file, notify);
   handled.add(plan.file);
-  if ( (plan.file.size > TUNNEL_LIMIT_BYTES) && !isLocalOrigin() ) {
-    const format = { name: plan.file.name, size: (plan.file.size / 1_000_000).toFixed(0) };
+  if ( (plan.file.size > TUNNEL_WARN_BYTES) && tunnelLimited() ) {
+    const format = { name: plan.file.name, size: (plan.file.size / MB).toFixed(0) };
     ui.notifications.warn("OPTIMALFOUNDRY.Media.UploadTooLarge", { format, permanent: true });
   }
   const response = await wrapped(source, path, plan.file, body, options);
@@ -151,7 +160,7 @@ function flushSummary() {
     const pct = Math.round((saved / original) * 100);
     ui.notifications.info("OPTIMALFOUNDRY.Media.Optimized", { format: { name: last, saved: pct } });
   }
-  else ui.notifications.info("OPTIMALFOUNDRY.Media.OptimizedBatch", { format: { count: files, mb: (saved / 1e6).toFixed(1) } });
+  else ui.notifications.info("OPTIMALFOUNDRY.Media.OptimizedBatch", { format: { count: files, mb: (saved / MB).toFixed(1) } });
 }
 
 async function afterUpload(plan, response, notify) {
@@ -164,7 +173,9 @@ async function afterUpload(plan, response, notify) {
   }
   if ( (result.reason === REASON.notCapable) || (result.status === "failed") ) {
     if ( (result.reason === REASON.notCapable) && notify ) {
-      ui.notifications.info("OPTIMALFOUNDRY.Media.NotCapable", { format: { name: plan.originalName } });
+      // On plain HTTP no browser can convert: say what the page needs instead of blaming the browser.
+      const key = conversionBlocker() === "insecure" ? "OPTIMALFOUNDRY.Media.NotCapableInsecure" : "OPTIMALFOUNDRY.Media.NotCapable";
+      ui.notifications.info(key, { format: { name: plan.originalName } });
     }
     requestConversion(stored);
   }

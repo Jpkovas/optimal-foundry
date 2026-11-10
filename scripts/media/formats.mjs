@@ -2,6 +2,13 @@ import { EXT, extOf } from "../constants.mjs";
 
 /** WebP cannot store more than 16383 px per side. */
 export const WEBP_MAX_SIDE = 16383;
+/**
+ * Largest image the converter decodes, in source pixels. Each decoded RGBA copy costs 4 bytes per pixel and a
+ * conversion holds about three (bitmap, canvas, encoder snapshot), next to Foundry's own canvas.
+ */
+export const IMAGE_PIXEL_BUDGET = 100_000_000;
+/** `navigator.deviceMemory` (GB) at or below which the pixel budget is halved. */
+export const LOW_MEMORY_GB = 4;
 
 /** Images that are already in an efficient format. */
 export const IMAGE_OPTIMAL_EXT = new Set(["webp", "avif"]);
@@ -32,6 +39,16 @@ export const VIDEO_BITRATE_MAX = 20_000_000;
 /** Animated GIF/APNG loops are tiny; the video floor would inflate them. */
 export const ANIMATION_BITRATE_MIN = 64_000;
 
+/** Opus always runs at 48 kHz; the converter resamples every source to it. */
+export const OPUS_SAMPLE_RATE = 48000;
+/**
+ * Foundry decodes sounds up to this long into an AudioBuffer and loops them sample-exactly
+ * (Sound.MAX_BUFFER_DURATION); longer ones stream through an audio element, which never loops gaplessly.
+ */
+export const LOOP_BUFFER_SECONDS = 600;
+/** A converted loop may differ from its source by at most this much before the loop point is audible. */
+export const LOOP_TOLERANCE_MS = 1;
+
 /**
  * Reason codes stored in OptimizeResult.reason / LibraryEntry.reason.
  * Each has a label at OPTIMALFOUNDRY.Media.Reason.<code>. Failures carry the error message instead.
@@ -51,7 +68,8 @@ export const REASON = Object.freeze({
   audioNotEncodable: "audioNotEncodable",
   animatedGif: "animatedGif",
   animatedGifImageField: "animatedGifImageField",
-  animatedGifDisabled: "animatedGifDisabled"
+  animatedGifDisabled: "animatedGifDisabled",
+  loopLength: "loopLength"
 });
 
 /**
@@ -131,4 +149,33 @@ export function imageSize(width, height, { keepResolution, maxImageSide }) {
   if (longest <= limit) return { width, height, resized: false };
   const s = limit / longest;
   return { width: Math.max(1, Math.round(width * s)), height: Math.max(1, Math.round(height * s)), resized: true };
+}
+
+/**
+ * Is a source image too big to decode on this device? The budget counts SOURCE pixels (a resize still decodes the
+ * whole image first) and is halved on devices reporting 4 GB of memory or less. Browsers without
+ * `navigator.deviceMemory` (Firefox) get the full budget.
+ * @param {number} width
+ * @param {number} height
+ * @param {number} [deviceMemory]  `navigator.deviceMemory`, in GB
+ */
+export function overPixelBudget(width, height, deviceMemory) {
+  const low = (deviceMemory > 0) && (deviceMemory <= LOW_MEMORY_GB);
+  return width * height > (low ? IMAGE_PIXEL_BUDGET / 2 : IMAGE_PIXEL_BUDGET);
+}
+
+/**
+ * Output size, in bytes, an encode at these target bitrates will produce. Encoders treat the bitrate as a target,
+ * so this is an estimate; it is what lets a file that cannot be uploaded be skipped before a long encode.
+ * @param {number} seconds     Duration of the media
+ * @param {...number} bitrates Target bitrates in bits per second (video, audio)
+ */
+export function predictedBytes(seconds, ...bitrates) {
+  const rate = bitrates.reduce((sum, b) => sum + (b > 0 ? b : 0), 0);
+  return Math.ceil((Math.max(0, seconds) * rate) / 8);
+}
+
+/** Would a converted sound of `outputSeconds` loop like its `sourceSeconds` source? (both as the browser decodes them) */
+export function sameLoopLength(sourceSeconds, outputSeconds) {
+  return Math.abs(sourceSeconds - outputSeconds) * 1000 <= LOOP_TOLERANCE_MS;
 }

@@ -32,7 +32,7 @@
     <table class="of-table">
         <thead>
             <tr>
-                <th class="of-pick"><input type="checkbox" data-of-pick-all {{#if allSelected}}checked{{/if}} aria-label="{{localize "OPTIMALFOUNDRY.Cleanup.SelectAll"}}"></th>
+                <th class="of-pick"><input type="checkbox" name="of-clean-all" data-of-pick-all {{#if allSelected}}checked{{/if}} aria-label="{{localize "OPTIMALFOUNDRY.Cleanup.SelectAll"}}"></th>
                 <th>{{localize "OPTIMALFOUNDRY.Dashboard.Media.File"}}</th>
                 <th>{{localize "OPTIMALFOUNDRY.Dashboard.Media.Kind"}}</th>
                 <th>{{localize "OPTIMALFOUNDRY.Cleanup.Original"}}</th>
@@ -42,7 +42,7 @@
         <tbody>
             {{#each candidates}}
             <tr>
-                <td class="of-pick"><input type="checkbox" data-of-pick="{{original}}" {{#if selected}}checked{{/if}} aria-label="{{name}}"></td>
+                <td class="of-pick"><input type="checkbox" name="of-clean-{{@index}}" data-of-pick="{{original}}" {{#if selected}}checked{{/if}} aria-label="{{name}}"></td>
                 <td class="of-file" data-tooltip-text="{{original}} → {{optimized}}">{{name}}</td>
                 <td>{{kind}}</td>
                 <td>{{originalSize}}</td>

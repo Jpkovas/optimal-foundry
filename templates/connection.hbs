@@ -1,23 +1,18 @@
 <section class="of-connection-body">
-    {{#unless secure}}
-    <p class="of-note warn">{{localize "OPTIMALFOUNDRY.Dashboard.P2P.Insecure"}}</p>
-    {{/unless}}
+    {{#if blocker}}<p class="of-note warn"><i class="fa-solid fa-lock-open" inert></i> {{blocker}}</p>{{/if}}
+    {{#if setup}}{{> "modules/optimal-foundry/templates/setup.hbs" setup}}{{/if}}
+    {{#if cacheNote}}<p class="of-note">{{cacheNote}}</p>{{/if}}
 
     <h3 class="of-title"><i class="fa-solid fa-laptop" inert></i> {{localize "OPTIMALFOUNDRY.Connection.Status"}}</h3>
     <dl class="of-kv">
-        <dt>{{localize "OPTIMALFOUNDRY.Dashboard.P2P.ServiceWorker"}}</dt>
+        <dt>{{localize "OPTIMALFOUNDRY.Connection.Cache"}}</dt>
         <dd>
             {{#if sw}}
             <span class="of-chip {{#if sw.isControlling}}ok{{else}}idle{{/if}}">{{#if sw.isControlling}}{{localize "OPTIMALFOUNDRY.Dashboard.P2P.SwActive"}}{{else}}{{localize "OPTIMALFOUNDRY.Dashboard.P2P.SwInactive"}}{{/if}}</span>
-            <span class="of-muted">{{localize "OPTIMALFOUNDRY.Sw.Version"}} {{sw.version}}</span>
-            {{#if sw.outdated}}<span class="of-chip bad">{{localize "OPTIMALFOUNDRY.Sw.OutdatedBadge"}}</span>{{/if}}
+            {{#if sw.isControlling}}<span class="of-muted">{{cache}}</span>{{/if}}
             {{else}}—{{/if}}
         </dd>
-        {{#if sw}}
-        <dt>{{localize "OPTIMALFOUNDRY.Sw.Persisted"}}</dt><dd>{{sw.persisted}}</dd>
-        {{/if}}
-        <dt>{{localize "OPTIMALFOUNDRY.Connection.Cache"}}</dt><dd>{{cache}}</dd>
-        <dt>{{localize "OPTIMALFOUNDRY.Dashboard.Network.P2P"}}</dt>
+        <dt>{{localize "OPTIMALFOUNDRY.Sharing.Title"}}</dt>
         <dd><span class="of-chip {{#if p2p.on}}ok{{else}}idle{{/if}}">{{p2p.label}}</span></dd>
         <dt>{{localize "OPTIMALFOUNDRY.Dashboard.Network.Preload"}}</dt>
         <dd>{{#if preload}}<span class="of-chip {{#if preload.on}}ok{{else}}idle{{/if}}">{{preload.label}}</span>{{else}}—{{/if}}</dd>
@@ -26,16 +21,20 @@
     </dl>
     {{#if sw.reason}}<p class="of-note">{{sw.reason}}</p>{{/if}}
     {{#if p2p.reason}}<p class="of-note">{{p2p.reason}}</p>{{/if}}
+    {{#if pendingChoice}}
+    <div class="of-note of-note-row warn">
+        <p>{{localize "OPTIMALFOUNDRY.Connection.NotChosen"}}</p>
+        <button type="button" data-action="choose"><i class="fa-solid fa-check" inert></i> {{localize "OPTIMALFOUNDRY.Connection.Choose"}}</button>
+    </div>
+    {{/if}}
 
     <h3 class="of-title"><i class="fa-solid fa-sliders" inert></i> {{localize "OPTIMALFOUNDRY.Connection.Options"}} <i class="fa-regular fa-circle-question of-hint" data-tooltip="{{localize "OPTIMALFOUNDRY.Connection.OptionsHint"}}" aria-label="{{localize "OPTIMALFOUNDRY.Connection.OptionsHint"}}"></i></h3>
     <div class="of-options">
         {{#each options}}
-        <label class="of-option">
-            {{#if checkbox}}
-            <input type="checkbox" data-of-setting="{{key}}" {{#if value}}checked{{/if}} {{#if disabled}}disabled{{/if}}>
-            {{else}}
-            <input type="number" data-of-setting="{{key}}" value="{{value}}" min="{{min}}" max="{{max}}" step="{{step}}" {{#if disabled}}disabled{{/if}}>
-            {{/if}}
+        <label class="of-option {{#if disabled}}of-disabled{{/if}}">
+            {{#if checkbox}}<input type="checkbox" name="{{key}}" data-of-setting="{{key}}" {{#if value}}checked{{/if}} {{#if disabled}}disabled{{/if}}>{{/if}}
+            {{#if select}}<select name="{{key}}" data-of-setting="{{key}}" {{#if disabled}}disabled{{/if}}>{{#each choices}}<option value="{{value}}" {{#if selected}}selected{{/if}}>{{label}}</option>{{/each}}</select>{{/if}}
+            {{#if number}}<input type="number" name="{{key}}" data-of-setting="{{key}}" value="{{value}}" min="{{min}}" max="{{max}}" step="{{step}}" {{#if disabled}}disabled{{/if}}>{{/if}}
             <span class="of-option-text">
                 <span class="of-option-label">{{label}}</span>
                 <span class="of-muted">{{hint}}</span>

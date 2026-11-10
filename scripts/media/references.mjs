@@ -12,11 +12,19 @@ import { normalizePath } from "../library.mjs";
  * @property {string} updatePath   Key used in doc.update: equals fieldPath, or the outermost array containing it
  *                                 (arrays cannot be patched by index, they are replaced whole)
  * @property {string[]} [categories] FilePathField categories, used to validate the new extension
+ * @property {string} [pattern]    Set on a "pattern reference": the field holds this wildcard pattern (wildcard token art),
+ *                                 not the file the reference is listed under. Such a reference is never re-pointed by path.
  */
 
 const MEDIA_EXT = new Set([...EXT.image, ...EXT.video, ...EXT.audio]);
-/** World documents never scanned: our own library lives in a Setting; chat and fog are history, not content. */
-const SKIP_DOCUMENTS = new Set(["ChatMessage", "FogExploration", "Setting"]);
+/** A media (or SVG) extension at the end of the value or right before its query: the cheap test before normalizing. */
+const MEDIA_HINT = new RegExp(`\\.(?:${[...MEDIA_EXT, "svg"].join("|")})(?:[?#]|$)`, "i");
+/**
+ * Documents never scanned: our own library lives in a Setting; chat and fog are history, not content. An Adventure is
+ * a snapshot waiting to be imported: re-pointing one replaces its whole `scenes`/`actors` arrays (megabytes per
+ * update), and the documents it creates on import are re-pointed by the document hooks anyway.
+ */
+const SKIP_DOCUMENTS = new Set(["ChatMessage", "FogExploration", "Setting", "Adventure"]);
 const HTML_HINT = /<(?:img|video|audio|source|a)\b/i;
 const TAG_RE = /<(img|video|audio|source|a)\b[^>]*>/gi;
 const ATTR_RE = /(\s)(src|href|poster)(\s*=\s*)(?:"([^"]*)"|'([^']*)'|([^\s"'>]+))/gi;
@@ -24,9 +32,30 @@ const ATTR_RE = /(\s)(src|href|poster)(\s*=\s*)(?:"([^"]*)"|'([^']*)'|([^\s"'>]+
 const MD_RE = /(!?\[[^\]]*\]\(\s*<?)([^)\s>]+)/g;
 const SCHEME_RE = /^[a-z][a-z0-9+.-]*:/i;
 const MAX_PLAIN_DEPTH = 16;
-const YIELD_EVERY = 40;
+/** Main-thread work between two yields to the browser (a frame at 60 fps is 16 ms). */
+const SLICE_MS = 12;
+/** One grouped update is one request, broadcast to every client: keep each one modest. */
+const GROUP_MAX_DOCS = 200;
+const GROUP_MAX_CHARS = 1_000_000;
+/** The field of an actor that holds the art (or the pattern of the art) of its tokens, and where the old pattern is kept. */
+const TOKEN_ART = "prototypeToken.texture.src";
+const PATTERN_FLAG = `flags.${MODULE_ID}.tokenPattern`;
 
-const yieldTick = () => new Promise(resolve => setTimeout(resolve, 0));
+/**
+ * For long loops: returns a function to await after each item. It yields to the browser once about SLICE_MS of work
+ * has passed since the last yield, however many items that took, and then honours the abort signal.
+ * @param {AbortSignal} [signal]
+ * @returns {() => Promise<void>}
+ */
+export function pacer(signal) {
+  let since = performance.now();
+  return async () => {
+    if (performance.now() - since < SLICE_MS) return;
+    await new Promise(resolve => setTimeout(resolve, 0));
+    signal?.throwIfAborted();
+    since = performance.now();
+  };
+}
 
 /* -------------------------------------------- */
 /*  Collection                                  */
@@ -34,19 +63,19 @@ const yieldTick = () => new Promise(resolve => setTimeout(resolve, 0));
 
 /**
  * Walk every world document (and world compendium documents when asked) and return the media they reference.
+ * The art pattern of an actor whose prototype token picks a random image (`tokens/goblin-*.png`) is listed under the
+ * pattern itself (a key with a `*`, which no file path has); `expandPatterns` swaps it for the files it matches.
  * @param {{includeCompendia?: boolean, signal?: AbortSignal}} [options]
  * @returns {Promise<Map<string, Ref[]>>} normalized path -> references
  */
 export async function collectReferences({ includeCompendia = false, signal, unread } = {}) {
   const out = new Map();
-  let count = 0;
+  // By elapsed time, not by count: forty actors with hundreds of items each are one long task.
+  const pace = pacer(signal);
   const visit = async doc => {
     try { walkDocument(doc, out, true, unread); }
     catch (err) { warn(`could not scan ${doc?.uuid}`, err); }
-    if (++count % YIELD_EVERY === 0) {
-      await yieldTick();
-      signal?.throwIfAborted();
-    }
+    await pace();
   };
 
   for (const collection of game.collections ?? []) {
@@ -82,9 +111,10 @@ export function collectDocumentReferences(doc, { children = true } = {}) {
 
 function walkDocument(doc, out, children, unread) {
   const schema = doc?.constructor?.schema;
-  if (!schema || !doc._source) return;
+  if (!schema || !doc._source || SKIP_DOCUMENTS.has(doc.documentName)) return;
   const ctx = { uuid: doc.uuid, docName: doc.documentName, out, inSystem: false, unread };
   walkSchema(schema, doc._source, "", null, ctx, 0);
+  if (doc.documentName === "Actor") addTokenPattern(ctx, doc._source.prototypeToken);
   if (!children) return;
 
   // Live embedded documents carry their own uuid and are updated on their own.
@@ -108,16 +138,9 @@ function walkField(field, value, path, updatePath, parentSource, ctx, depth) {
   if (value === null || value === undefined) return;
   const F = foundry.data.fields;
 
-  // Delta collections hold partial data whose semantics differ from plain arrays: never touch them.
-  if (field instanceof F.EmbeddedCollectionDeltaField) return;
-  if (field instanceof F.EmbeddedCollectionField) {
-    // Top level of a live document: children are walked as documents. Deeper (e.g. Adventure contents): raw data.
-    if (depth === 0) return;
-    if (!Array.isArray(value)) return;
-    const up = updatePath ?? path;
-    value.forEach((v, i) => walkSchema(field.schema, v, join(path, i), up, ctx, depth + 1));
-    return;
-  }
+  // Children are walked as documents of their own (walkDocument). Delta collections (an unlinked token's changes to
+  // its actor's items) hold partial data whose semantics differ from plain arrays: never touched.
+  if (field instanceof F.EmbeddedCollectionField) return;
   if (field instanceof F.ArrayField) {
     if (!Array.isArray(value)) return;
     const up = updatePath ?? path;
@@ -191,6 +214,18 @@ function walkPlain(value, path, updatePath, ctx, depth) {
   }
 }
 
+/**
+ * Wildcard token art: a prototype token with `randomImg` whose art holds a `*`. Every placed token loads one of the files
+ * the pattern matches (the document holds the pattern, never a file), so those files are references of this actor.
+ */
+function addTokenPattern(ctx, token) {
+  const pattern = token?.texture?.src;
+  if ((token?.randomImg !== true) || (typeof pattern !== "string")) return;
+  const key = pattern.trim();
+  if (!key.includes("*") || key.startsWith("#") || SCHEME_RE.test(key) || key.startsWith("//")) return;
+  push(ctx.out, key, { uuid: ctx.uuid, fieldPath: TOKEN_ART, updatePath: TOKEN_ART, kind: "texture", docName: "Actor", pattern: key });
+}
+
 function addString(ctx, value, path, updatePath) {
   if (HTML_HINT.test(value)) return addHtml(ctx, value, path, updatePath);
   if ((value.length > 2048) || /[\n\r<>"]/.test(value)) return;
@@ -224,10 +259,10 @@ function addMarkdown(ctx, md, path, updatePath) {
   }
 }
 
-function push(out, key, ref) {
+function push(out, key, ...refs) {
   let list = out.get(key);
   if (!list) out.set(key, list = []);
-  list.push(ref);
+  list.push(...refs);
 }
 
 /**
@@ -239,6 +274,9 @@ function mediaKey(raw, unread) {
   if (typeof raw !== "string") return null;
   const v = raw.trim();
   if (!v || v.startsWith("#") || v.startsWith("data:") || v.includes("*")) return null;
+  // Most strings a document holds are not files: reject them before paying for normalizePath. Exact for anything
+  // without percent-encoding (normalizing only cuts the query and decodes); encoded values take the full path below.
+  if (!MEDIA_HINT.test(v) && !v.includes("%")) return null;
   // Other hosts, judged on the raw value: normalizePath strips the leading slashes of "//host/a.png".
   if (SCHEME_RE.test(v) || v.startsWith("//")) {
     if (unread && MEDIA_EXT.has(extOf(v.split(/[?#]/)[0]))) unread.external.add(v);
@@ -251,6 +289,39 @@ function mediaKey(raw, unread) {
   if (MEDIA_EXT.has(ext)) return key;
   if (unread && ext === "svg") unread.vector.add(key);
   return null;
+}
+
+/** Is this key of a reference map a wildcard pattern (see collectReferences) and not a file? Real keys never hold a `*`. */
+export const isPatternKey = key => String(key).includes("*");
+
+/**
+ * The media files a pattern matches, the way Foundry lists the art of a wildcard token (the server's browse with
+ * `wildcard`). Null when the server cannot say, so a caller never mistakes "unknown" for "no files".
+ * @param {string} pattern  As written in the field
+ * @returns {Promise<Set<string>|null>} normalized paths
+ */
+export async function matchPattern(pattern) {
+  try {
+    const result = await foundry.applications.apps.FilePicker.implementation.browse("data", pattern, { wildcard: true });
+    return new Set((result?.files ?? []).map(file => mediaKey(file)).filter(Boolean));
+  }
+  catch (err) {
+    warn(`could not list the files of ${pattern}`, err);
+    return null;
+  }
+}
+
+/**
+ * Replace each pattern key of a collection result by the files it matches: the pattern references join the references
+ * of those files (they keep `pattern`), so a file behind wildcard token art is optimized like any other.
+ * @param {Map<string, Ref[]>} refs  Changed in place
+ */
+export async function expandPatterns(refs) {
+  for (const key of [...refs.keys()].filter(isPatternKey)) {
+    const list = refs.get(key);
+    refs.delete(key);
+    for (const file of (await matchPattern(key)) ?? []) push(refs, file, ...list);
+  }
 }
 
 function kindFromCategories(categories = []) {
@@ -279,15 +350,6 @@ function* markdownValues(md) {
 /* -------------------------------------------- */
 
 /**
- * Re-point references. Each document is updated once with all its changed fields, then read back.
- * Counts are per reference (field occurrence).
- * @param {Map<string, string>} map   from path -> to path (any form; normalized here)
- * @param {{refs: Map<string, Ref[]>|Ref[], protect?: (ref: Ref) => boolean}} options
- *   refs: the collection result (or a plain list).
- *   protect: return true to defer a reference (returned in `deferred`, untouched).
- * @returns {Promise<{updated: number, skipped: number, failed: number, deferred: Ref[], failedFrom: string[]}>}
- */
-/**
  * Installed on every client. Core's PlaylistSound#_onUpdate recreates the Sound when `path` changes and throws while
  * game audio is locked (a player who has not clicked yet), so each rewrite of a playlist track would surface as an
  * uncaught error on those clients. Sounds are created lazily (`sound ||= _createSound()`) once audio unlocks, so the
@@ -304,6 +366,18 @@ export function installRewriteGuards() {
   }, "WRAPPER");
 }
 
+/**
+ * Re-point references. Each document gets all its changed fields in one update, and the documents are sent in
+ * groups: one request per document type under the same parent (an actor's items, a scene's tokens), and one per
+ * top-level type in the world or in a compendium. A hundred items sharing an icon are one broadcast and one
+ * re-preparation of their actor on every client instead of a hundred. Every value is then read back from the stored
+ * source, which alone decides success. Counts are per reference (field occurrence).
+ * @param {Map<string, string>} map   from path -> to path (any form; normalized here)
+ * @param {{refs: Map<string, Ref[]>|Ref[], protect?: (ref: Ref) => boolean}} options
+ *   refs: the collection result (or a plain list).
+ *   protect: return true to defer a reference (returned in `deferred`, untouched).
+ * @returns {Promise<{updated: number, skipped: number, failed: number, deferred: Ref[], failedFrom: string[]}>}
+ */
 export async function rewriteReferences(map, { refs, protect }) {
   const result = { updated: 0, skipped: 0, failed: 0, deferred: [], failedFrom: [] };
   const norm = new Map();
@@ -322,6 +396,11 @@ export async function rewriteReferences(map, { refs, protect }) {
 
   const byDoc = new Map();
   for (const ref of list) {
+    // A pattern reference holds a wildcard, not the file: the pattern is changed as a whole (setTokenPatterns).
+    if (ref.pattern) continue;
+    // Adventures are never re-pointed (see SKIP_DOCUMENTS): the collection leaves them out, and a list built
+    // elsewhere is held to the same rule.
+    if (ref.docName === "Adventure") { result.skipped++; continue; }
     let deferred = false;
     try { deferred = !!protect?.(ref); }
     catch (err) { warn("protect() failed, deferring", err); deferred = true; }
@@ -332,14 +411,60 @@ export async function rewriteReferences(map, { refs, protect }) {
   }
 
   const failedFrom = new Set();
+  const fail = (uuid, items, why, err) => {
+    warn(`rewrite failed for ${uuid}: ${why}`, err ?? "");
+    for (const it of items) {
+      result.failed++;
+      for (const k of it.keys ?? [it.from]) if (k) failedFrom.add(k);
+    }
+  };
   const unlocked = new Map(); // pack -> previous `locked` config value
   try {
+    // Documents that can share one request: the same type under the same parent, or the same top-level type in the
+    // world or in one compendium.
+    const targets = new Map();
     for (const [uuid, group] of byDoc) {
-      try { await rewriteDocument(uuid, group, norm, result, failedFrom, unlocked); }
-      catch (err) {
-        warn(`rewrite failed for ${uuid}`, err);
-        for (const r of group) { result.failed++; if (r.from) failedFrom.add(r.from); }
+      let doc = null;
+      try { doc = await resolveTarget(uuid, group, result, fail, unlocked); }
+      catch (err) { fail(uuid, group, "could not load the document", err); }
+      if (!doc) continue;
+      const key = `${doc.documentName}|${doc.parent?.uuid ?? ""}|${doc.pack ?? ""}`;
+      let target = targets.get(key);
+      if (!target) targets.set(key, target = []);
+      target.push({ uuid, doc, refs: group });
+    }
+
+    // Each document is planned from its source right before its group is sent (arrays are replaced whole, so a plan
+    // must not sit around while the document is edited). A group is cut at GROUP_MAX_DOCS documents or about
+    // GROUP_MAX_CHARS of changed data: journal pages carry their whole HTML.
+    const plans = [];
+    for (const target of targets.values()) {
+      let batch = [], size = 0;
+      const send = async () => {
+        if (batch.length) await updateGroup(batch);
+        batch = [];
+        size = 0;
+      };
+      for (const { uuid, doc, refs: group } of target) {
+        let plan = null;
+        try { plan = planDocument(uuid, doc, group, norm, result); }
+        catch (err) { fail(uuid, group, "could not prepare the update", err); }
+        if (!plan) continue;
+        plans.push(plan);
+        if (!Object.keys(plan.changes).length) continue;
+        batch.push(plan);
+        size += JSON.stringify(plan.changes).length;
+        if ((batch.length >= GROUP_MAX_DOCS) || (size >= GROUP_MAX_CHARS)) await send();
       }
+      await send();
+    }
+
+    // v14 silently drops writes to some fields (deprecated shims): verify against the stored source.
+    for (const plan of plans) {
+      const fresh = (await resolveDoc(plan.uuid)) ?? plan.doc;
+      const missing = unmet(fresh, plan.expectations);
+      result.updated += plan.expectations.length - missing.length;
+      for (const e of missing) fail(plan.uuid, [e], `${e.fieldPath} did not persist`);
     }
   }
   finally {
@@ -352,31 +477,34 @@ export async function rewriteReferences(map, { refs, protect }) {
   return result;
 }
 
-async function rewriteDocument(uuid, refs, map, result, failedFrom, unlocked) {
-  const fail = (items, why, err) => {
-    warn(`rewrite failed for ${uuid}: ${why}`, err ?? "");
-    for (const it of items) {
-      result.failed++;
-      for (const k of it.keys ?? [it.from]) if (k) failedFrom.add(k);
-    }
-  };
-
+/**
+ * The document behind a uuid, ready to be written: null when it is gone, or lives in a compendium that is never
+ * written (a module's or the system's) or that cannot be unlocked. A locked world compendium is unlocked here and
+ * recorded in `unlocked`, so the caller locks it again.
+ */
+async function resolveTarget(uuid, refs, result, fail, unlocked) {
   const doc = await resolveDoc(uuid);
-  if (!doc) return fail(refs, "document not found");
-
-  if (doc.pack) {
-    const pack = game.packs.get(doc.pack);
-    if (!pack || (pack.metadata?.packageType !== "world")) { result.skipped += refs.length; return; }
-    if (pack.locked && !unlocked.has(pack)) {
-      try {
-        const previous = pack.config?.locked;
-        await pack.configure({ locked: false });
-        unlocked.set(pack, previous);
-      }
-      catch (err) { return fail(refs, "compendium is locked", err); }
+  if (!doc) { fail(uuid, refs, "document not found"); return null; }
+  if (!doc.pack) return doc;
+  const pack = game.packs.get(doc.pack);
+  if (!pack || (pack.metadata?.packageType !== "world")) { result.skipped += refs.length; return null; }
+  if (pack.locked && !unlocked.has(pack)) {
+    try {
+      const previous = pack.config?.locked;
+      await pack.configure({ locked: false });
+      unlocked.set(pack, previous);
     }
+    catch (err) { fail(uuid, refs, "compendium is locked", err); return null; }
   }
+  return doc;
+}
 
+/**
+ * What one document needs: the changes to send and what the stored source must hold afterwards. Null when none of
+ * its references needs a change.
+ * @returns {{uuid: string, doc: foundry.abstract.Document, changes: object, expectations: object[]}|null}
+ */
+function planDocument(uuid, doc, refs, map, result) {
   // One change per update key; arrays are cloned once and edited in place.
   const changes = {};
   const expectations = []; // {fieldPath, value} for paths, {fieldPath, keys} for HTML
@@ -433,25 +561,85 @@ async function rewriteDocument(uuid, refs, map, result, failedFrom, unlocked) {
     if (changed) changes[updatePath] = next;
   }
 
-  if (!expectations.length) return;
-  if (Object.keys(changes).length) {
-    // A local _onUpdate side effect can throw after the server already stored the change
-    // (e.g. PlaylistSound before audio is unlocked), so only the read-back below decides.
-    try { await doc.update(changes, { [MODULE_ID]: { rewrite: true } }); }
-    catch (err) { warn(`update of ${uuid} threw; verifying what was stored`, err); }
-  }
+  return expectations.length ? { uuid, doc, changes, expectations } : null;
+}
 
-  // v14 silently drops writes to some fields (deprecated shims): verify against the stored source.
-  const fresh = (await resolveDoc(uuid)) ?? doc;
-  for (const e of expectations) {
-    const now = foundry.utils.getProperty(fresh._source, e.fieldPath);
-    const hasKey = e.markdown ? markdownHasKey : htmlHasKey;
-    const ok = e.keys
-      ? (typeof now === "string") && !e.keys.some(k => hasKey(now, k))
-      : now === e.value;
-    if (ok) result.updated++;
-    else fail([e], `${e.fieldPath} did not persist`);
+/** The operation options of every rewrite; the backfill's document hooks ignore updates that carry the flag. */
+const rewriteOperation = () => ({ [MODULE_ID]: { rewrite: true } });
+
+/**
+ * Change the art pattern of actors' prototype tokens, each in one update that carries the rewrite flag.
+ * With `to`, the field becomes `to` and the old pattern (`from`) is remembered in the actor's flag
+ * `flags.optimal-foundry.tokenPattern`; without it, the remembered pattern is put back and the flag removed.
+ * An actor whose field no longer holds `from` (edited since the scan), or has nothing to put back, is left alone.
+ * The stored source alone decides success.
+ * @param {{uuid: string, from: string, to?: string}[]} items
+ * @returns {Promise<{updated: number, skipped: number, failed: number}>}
+ */
+export async function setTokenPatterns(items) {
+  const result = { updated: 0, skipped: 0, failed: 0 };
+  const fail = (uuid, _refs, why, err) => { warn(`token art pattern of ${uuid}: ${why}`, err ?? ""); result.failed++; };
+  const unlocked = new Map();
+  try {
+    for (const { uuid, from, to } of items) {
+      try {
+        const doc = await resolveTarget(uuid, [], result, fail, unlocked);
+        if (!doc) continue;
+        const next = to ?? foundry.utils.getProperty(doc._source, PATTERN_FLAG);
+        if ((foundry.utils.getProperty(doc._source, TOKEN_ART) !== from) || (typeof next !== "string") || (next === from)) {
+          result.skipped++;
+          continue;
+        }
+        const flag = to ? { [PATTERN_FLAG]: from } : { flags: { [MODULE_ID]: { tokenPattern: new foundry.data.operators.ForcedDeletion() } } };
+        const changes = { [TOKEN_ART]: next, ...flag };
+        try { await doc.update(changes, rewriteOperation()); }
+        catch (err) { warn(`update of ${uuid} threw; verifying what was stored`, err); }
+        const stored = (await resolveDoc(uuid)) ?? doc;
+        if (foundry.utils.getProperty(stored._source, TOKEN_ART) === next) result.updated++;
+        else fail(uuid, [], `${TOKEN_ART} did not persist`);
+      }
+      catch (err) { fail(uuid, [], "could not update the actor", err); }
+    }
   }
+  finally {
+    for (const [pack, previous] of unlocked) {
+      try { await pack.configure({ locked: previous }); }
+      catch (err) { warn(`could not re-lock compendium ${pack.collection}`, err); }
+    }
+  }
+  return result;
+}
+
+/** Send one group: what `doc.update()` does for one document (same class, parent and pack), for all of them. */
+async function updateGroup(plans) {
+  const { doc } = plans[0];
+  try {
+    await doc.constructor.updateDocuments(plans.map(p => ({ _id: p.doc.id, ...p.changes })),
+      { ...rewriteOperation(), parent: doc.parent, pack: doc.pack });
+  }
+  catch (err) {
+    // A local _onUpdate side effect can throw after the server already stored the change
+    // (e.g. PlaylistSound before audio is unlocked), so only the read-back decides.
+    warn(`update of ${plans.length} ${doc.documentName} document(s) threw; verifying what was stored`, err);
+    if (plans.length === 1) return;
+    // An error before the request left (one document's _preUpdate, or a preUpdate hook, throwing) stops the whole
+    // group. Whatever was not stored gets its own update, so one bad document fails alone, as it did ungrouped.
+    for (const plan of plans) {
+      if (!unmet(plan.doc, plan.expectations).length) continue;
+      try { await plan.doc.update(plan.changes, rewriteOperation()); }
+      catch (e) { warn(`update of ${plan.uuid} threw; verifying what was stored`, e); }
+    }
+  }
+}
+
+/** The expectations the stored source of a document does not meet. */
+function unmet(doc, expectations) {
+  return expectations.filter(e => {
+    const now = foundry.utils.getProperty(doc._source, e.fieldPath);
+    if (!e.keys) return now !== e.value;
+    const hasKey = e.markdown ? markdownHasKey : htmlHasKey;
+    return (typeof now !== "string") || e.keys.some(k => hasKey(now, k));
+  });
 }
 
 /** fromUuid loads world, compendium and embedded documents on demand. */

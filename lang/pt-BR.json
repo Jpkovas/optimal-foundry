@@ -126,21 +126,9 @@
         "Name": "Preparar a próxima cena na memória",
         "Hint": "Além de baixar, deixa as imagens da próxima cena prevista (a marcada; sem marcação, a vizinha na barra de navegação ou na pasta) prontas na memória do computador, para a troca ser instantânea. Gasta mais memória; só liga em computadores com desempenho Médio ou maior."
       },
-      "preloadOnThisDevice": {
-        "Name": "Baixar as próximas cenas neste aparelho",
-        "Hint": "Desligue se sua internet for lenta ou limitada (por exemplo, no celular). Começa desligado quando a economia de dados do navegador está ativa."
-      },
-      "preloadInclude": {
-        "Name": "Sempre pré-carregar",
-        "Hint": "Pastas e playlists que entram sempre no pré-carregamento. Edite pelo painel do Optimal Foundry."
-      },
-      "preloadExclude": {
-        "Name": "Nunca pré-carregar",
-        "Hint": "Pastas e playlists que ficam fora do pré-carregamento. Edite pelo painel do Optimal Foundry."
-      },
       "p2pEnabled": {
         "Name": "Jogadores compartilham arquivos entre si",
-        "Hint": "Quem já baixou um arquivo envia direto para os outros jogadores, poupando a sua internet. Precisa de HTTPS. Na conexão direta os jogadores do mundo veem o endereço IP uns dos outros."
+        "Hint": "Quem já baixou um arquivo envia direto para os outros jogadores, poupando a sua internet. Precisa de HTTPS e do cache local; atrás de um CDN não é usado. Jogadores que compartilham veem o endereço IP uns dos outros, e cada um escolhe se participa."
       },
       "serviceWorker": {
         "Name": "Guardar arquivos no navegador",
@@ -160,27 +148,24 @@
       },
       "p2pParticipate": {
         "Name": "Compartilhar arquivos com os outros jogadores",
-        "Hint": "Desligue se sua internet for limitada. Na conexão direta os outros jogadores do mundo veem o endereço IP deste navegador; desligar evita isso."
-      },
-      "p2pUploadCapMBps": {
-        "Name": "Velocidade máxima de envio aos colegas (MB/s)",
-        "Hint": "Limita quanto da sua internet é usado para mandar arquivos aos outros jogadores."
+        "Hint": "Desligue se sua internet for limitada. Jogadores que compartilham veem o endereço IP uns dos outros; desligar evita isso."
       },
       "cacheQuotaMB": {
         "Name": "Espaço para guardar arquivos (MB)",
         "Hint": "Quanto espaço os arquivos guardados podem ocupar neste navegador. Os menos usados saem primeiro quando enche."
       },
-      "library": {
-        "Name": "Biblioteca de otimização",
-        "Hint": "Registro interno de cada original e da sua cópia otimizada. Não edite à mão."
+      "preloadScope": {
+        "Name": "Quanto baixar com antecedência",
+        "Hint": "Tudo: o mundo inteiro, aos poucos. Só esta sessão: o que a sessão provavelmente vai precisar, nunca o resto do mundo. Nada: os arquivos só baixam quando forem usados. Começa mais leve quando a economia de dados do navegador está ligada ou em internet móvel.",
+        "Choices": {
+          "all": "Tudo",
+          "session": "Só esta sessão",
+          "off": "Nada"
+        }
       },
-      "nextScenes": {
-        "Name": "Próximas cenas",
-        "Hint": "Cenas marcadas pelo mestre para pré-carregar primeiro."
-      },
-      "cdnStatus": {
-        "Name": "Estado do CDN",
-        "Hint": "Resultado interno da última detecção de CDN."
+      "p2pUploadCapMbps": {
+        "Name": "Velocidade máxima de envio aos outros jogadores (Mbps)",
+        "Hint": "Limita quanto da sua internet é usado para mandar arquivos aos outros jogadores. Deixe bem abaixo da sua velocidade de upload, para a chamada de voz e o jogo não engasgarem."
       }
     },
     "Dashboard": {
@@ -190,12 +175,12 @@
       "Menu": {
         "Name": "Painel do Optimal Foundry",
         "Label": "Abrir painel",
-        "Hint": "Acompanhe a otimização da mídia, a rede, o P2P e escolha o que pré-carregar."
+        "Hint": "Acompanhe a otimização dos arquivos, a rede e o compartilhamento entre jogadores, e escolha o que pré-carregar."
       },
       "Tabs": {
         "media": "Mídia",
         "network": "Rede",
-        "p2p": "P2P",
+        "p2p": "Compartilhamento",
         "preload": "Pré-carregamento",
         "cleanup": "Limpeza"
       },
@@ -270,7 +255,8 @@
           "off": "A otimização dos arquivos existentes está desligada. Só o que for enviado de agora em diante é otimizado (se essa opção estiver ligada)."
         },
         "WaitingWelcome": "Nada é convertido antes de alguém concluir a tela de boas-vindas do módulo.",
-        "WaitingWelcomeShort": "Esperando as boas-vindas"
+        "WaitingWelcomeShort": "Esperando as boas-vindas",
+        "HeavyWaiting": "{count} arquivo(s) pesado(s) esperam os jogadores saírem: converter agora pode deixar este navegador e o jogo lentos. Eles são convertidos sozinhos quando não houver jogador conectado."
       },
       "Network": {
         "Profile": "Perfil",
@@ -280,7 +266,6 @@
         "HostUpload": "Upload do servidor",
         "PreloadRate": "Banda do pré-carregamento",
         "StaggerJoin": "Entrada escalonada",
-        "P2P": "P2P",
         "IdleAfter": "Ocioso após",
         "MaxFile": "Maior arquivo pré-carregado",
         "Cdn": "CDN",
@@ -288,7 +273,7 @@
         "CdnDetected": "CDN com cache",
         "CdnOn": "CDN ativo",
         "CdnOff": "sem CDN",
-        "CdnHeader": "Cabeçalho cf-cache-status",
+        "CdnHeader": "O que o teste viu",
         "CheckedAt": "Verificado em",
         "LocalHint": "No localhost, quem mede o CDN é um jogador conectado. Clique em Detectar de novo com um jogador on-line.",
         "Preload": "Pré-carregamento",
@@ -304,46 +289,36 @@
         "Rate": "Velocidade",
         "SceneReady": "Cena pronta",
         "Idle": "Ocioso",
-        "P2PCell": "↑ {up} ↓ {down} · pares: {peers}",
         "NoClients": "Nenhum dado dos jogadores ainda.",
         "Unavailable": "O gerenciador de rede não está disponível (veja o console).",
         "MeasuredBy": "medido por {by} em {origin}",
         "NextReady": "Pronto para o que vem",
         "QueuePos": "fila #{position}",
         "Joining": "carregando agora",
-        "PreloadServing": "Servindo a fila (este navegador não pré-carrega)"
+        "PreloadServing": "Servindo a fila (este navegador não pré-carrega)",
+        "Slowed": "mais lento",
+        "BudgetSlowed": "O download antecipado está mais lento agora ({rate} em vez de até {ceiling}): a conexão está respondendo devagar ({rtt} ms), então o módulo deixa espaço para o jogo."
       },
       "P2P": {
-        "ServiceWorker": "Cache local (Service Worker)",
+        "ServiceWorker": "Cache local",
         "SwActive": "Cache ativo",
         "SwInactive": "Sem cache",
-        "Supported": "Suportado",
-        "Registered": "Registrado",
-        "Controlling": "Controlando a página",
-        "Scope": "Escopo",
+        "Supported": "Este navegador suporta",
+        "Registered": "Instalado",
+        "Controlling": "Ativo nesta página",
         "Cache": "Arquivos no cache",
-        "Swarm": "Rede entre jogadores",
-        "PeersCount": "pares: {count}",
+        "Swarm": "Compartilhamento deste navegador",
+        "PeersCount": "{count} conexão(ões)",
         "Sent": "Enviado",
         "Received": "Recebido",
         "Files": "arquivos",
         "Failures": "Falhas",
         "Participate": "Este navegador participa",
-        "UploadCap": "limite",
-        "Peers": "Pares",
+        "UploadCap": "limite de envio",
+        "Peers": "Conexões diretas deste navegador",
         "Connection": "Conexão",
         "Rtt": "Latência",
-        "NoPeers": "Nenhum par conectado.",
-        "Insecure": "Esta página não está em HTTPS nem no localhost: o navegador bloqueia o cache local e o P2P.",
-        "State": {
-          "new": "Novo",
-          "connecting": "Conectando",
-          "connected": "Conectado",
-          "disconnected": "Desconectado",
-          "failed": "Falhou",
-          "closed": "Fechado",
-          "banned": "Bloqueado"
-        }
+        "NoPeers": "Nenhuma conexão direta com outro jogador agora."
       },
       "Preload": {
         "NextScenes": "Passar na frente (opcional)",
@@ -367,7 +342,7 @@
         "Playlist": "playlist",
         "Disabled": "O pré-carregamento está desligado nas configurações. As escolhas abaixo ficam guardadas para quando ligar.",
         "Auto": "Previsão automática",
-        "AutoHint": "O módulo decide sozinho o que cada jogador baixa enquanto a rede está parada, do mais provável para o menos provável: as cenas que os jogadores estão vendo, o resto da cena ativa e a playlist dela, o que está tocando, as cenas vizinhas na barra de navegação e na pasta, os destinos de teleporte, depois as outras cenas da barra, as fichas dos personagens, e por fim todo o resto do mundo (as outras cenas e playlists, mesmo as escondidas, e as imagens dos diários que os jogadores podem ver). A banda reservada para isso, o P2P entre os jogadores e o espaço no navegador de cada um decidem até onde dá para ir. Você não precisa marcar nada.",
+        "AutoHint": "O módulo decide sozinho o que cada jogador baixa enquanto a rede está parada, do mais provável para o menos provável: as cenas que os jogadores estão vendo, o resto da cena ativa e a playlist dela, o que está tocando, as cenas vizinhas na barra de navegação e na pasta, os destinos de teleporte, depois as outras cenas da barra, as fichas dos personagens, e por fim todo o resto do mundo (as outras cenas e playlists, mesmo as escondidas, e as imagens dos diários que os jogadores podem ver). A banda reservada para isso, o compartilhamento entre os jogadores e o espaço no navegador de cada um decidem até onde dá para ir. Você não precisa marcar nada.",
         "Tier": {
           "0": "Agora",
           "1": "Provável",
@@ -438,8 +413,8 @@
         },
         "OriginHint": {
           "world": "Arquivos dentro de worlds/<este mundo>/.",
-          "module": "Arquivos que vêm de módulos instalados (modules/…). As versões otimizadas vão para a pasta optimal-foundry/ do Data, porque a pasta do módulo é substituída quando ele atualiza.",
-          "system": "Arquivos do sistema de jogo (systems/…). As versões otimizadas vão para a pasta optimal-foundry/ do Data.",
+          "module": "Arquivos que vêm de módulos instalados (modules/…). As versões otimizadas vão para uma pasta optimal-foundry/ dentro da pasta deste mundo, porque a pasta do módulo é substituída quando ele atualiza.",
+          "system": "Arquivos do sistema de jogo (systems/…). As versões otimizadas vão para uma pasta optimal-foundry/ dentro da pasta deste mundo.",
           "core": "Ícones, sons e imagens que vêm com o Foundry (icons/, sounds/, ui/…). Quase todos já são WebP ou Ogg.",
           "data": "Arquivos em outras pastas do Data, fora de worlds/, modules/ e systems/ (por exemplo, uma pasta assets/ sua).",
           "otherWorld": "Arquivos guardados na pasta de outro mundo que este mundo também usa."
@@ -463,7 +438,8 @@
         "External": "{count} arquivo(s) estão em outro endereço (S3, CDN ou outro site) e não são lidos: o módulo só converte arquivos que o próprio servidor do Foundry guarda. Exemplos: {examples}",
         "Vector": "{count} imagem(ns) SVG ficam como estão: são vetoriais e já são leves.",
         "Packs": "{packs} compêndio(s) de módulos e do sistema ({documents} documentos) não são lidos. Eles pertencem ao módulo ou ao sistema e voltariam ao original na próxima atualização, então o módulo não mexe neles. O que você importa para o mundo (cenas, atores, diários) passa a ser lido e otimizado.",
-        "PacksAll": "{packs} compêndio(s) ({documents} documentos) não são lidos, inclusive os do mundo, porque a opção \"Incluir os compêndios do mundo\" está desligada. Os de módulos e do sistema nunca são lidos: voltariam ao original na próxima atualização. O que você importa para o mundo passa a ser lido e otimizado."
+        "PacksAll": "{packs} compêndio(s) ({documents} documentos) não são lidos, inclusive os do mundo, porque a opção \"Incluir os compêndios do mundo\" está desligada. Os de módulos e do sistema nunca são lidos: voltariam ao original na próxima atualização. O que você importa para o mundo passa a ser lido e otimizado.",
+        "Repaired": "{count} referência(s) voltaram a apontar para o arquivo original, porque a cópia otimizada não estava mais no servidor."
       },
       "Review": {
         "Title": "Esperando sua aprovação",
@@ -480,7 +456,7 @@
       }
     },
     "Reasons": {
-      "tooLarge": "maior que 16383 px (limite do WebP)",
+      "tooLarge": "grande demais para converter (pixels demais, ou o arquivo convertido passaria do limite de envio)",
       "animatedGifImageField": "GIF animado usado como imagem; mantido",
       "missing": "arquivo não encontrado no servidor",
       "noSavings": "a conversão não economizaria o bastante",
@@ -491,15 +467,14 @@
       "encodeError": "falha ao converter",
       "uploadFailed": "falha ao enviar a cópia otimizada",
       "rewriteFailed": "falha ao atualizar referências",
-      "insecureContext": "página sem HTTPS",
-      "unsupportedBrowser": "navegador sem suporte",
       "disabled": "desligado nas configurações",
-      "registrationFailed": "o registro do Service Worker falhou",
       "restored": "restaurado ao original pelo mestre; não será otimizado de novo automaticamente",
       "interrupted": "a conversão foi interrompida (o navegador travou ou foi fechado)",
+      "stalled": "a conversão parou de avançar e foi cancelada",
       "notPersisted": "não deu para salvar a biblioteca; as referências não foram trocadas",
       "scanFailed": "a varredura do mundo falhou",
       "workerStopped": "a otimização do acervo parou por causa de um erro",
+      "uploadStopped": "parou depois de vários envios seguidos com falha",
       "declined": "Você escolheu deixar como está"
     },
     "Library": {
@@ -513,6 +488,11 @@
         "audio": "áudios"
       },
       "UploadFailed": "Falha ao enviar o arquivo otimizado para o servidor",
+      "UploadTimeout": "O servidor não respondeu ao envio a tempo",
+      "UploadIncomplete": "O arquivo otimizado não chegou inteiro ao servidor",
+      "UploadStopped": "A otimização do acervo parou: {count} envios seguidos falharam. Confira o espaço livre no disco do servidor e a conexão, depois clique em Iniciar no painel.",
+      "NotCapableInsecure": "Esta página não está em HTTPS (nem em localhost), então o navegador não deixa converter arquivos aqui. Para otimizar os arquivos que o mundo já tem, abra o mundo por um endereço https://, ou por localhost no próprio computador do servidor.",
+      "Repaired": "{files} arquivo(s) otimizado(s) não estavam mais no servidor. {references} referência(s) voltaram a usar o original, e esses arquivos serão otimizados de novo.",
       "ConvertFailed": "Falha na conversão",
       "UndoPaused": "A otimização do acervo está pausada. Clique em Iniciar no painel para retomar."
     },
@@ -521,6 +501,7 @@
       "Optimized": "{name} otimizado: {saved}% menor.",
       "ConvertFailed": "Não deu para otimizar {name}. O original foi enviado.",
       "NotCapable": "Este navegador não consegue converter {name}. O original foi enviado e o mestre vai otimizá-lo em segundo plano.",
+      "NotCapableInsecure": "Esta página não está em HTTPS (nem em localhost), então o navegador não consegue converter {name}. O original foi enviado e o mestre vai otimizá-lo em segundo plano.",
       "UploadTooLarge": "{name} tem {size} MB. Pelo túnel da Cloudflare o limite é 100 MB por envio, então este upload pode falhar. Envie pelo computador do servidor ou reduza o arquivo.",
       "Reason": {
         "notCapable": "Navegador sem suporte para converter este formato",
@@ -528,7 +509,7 @@
         "vector": "Imagem vetorial (SVG) não é convertida",
         "unsupported": "Formato não suportado",
         "undecodable": "O navegador não conseguiu ler o arquivo",
-        "tooLarge": "Maior que 16383 px de lado (limite do WebP)",
+        "tooLarge": "Grande demais para converter: a imagem tem pixels demais, ou o arquivo convertido passaria do limite de envio",
         "noSavings": "A versão otimizada não ficou menor o suficiente",
         "lowBitrate": "MP3 com taxa de bits baixa; converter não compensa",
         "missing": "Arquivo não encontrado no servidor",
@@ -537,7 +518,8 @@
         "audioNotEncodable": "O áudio do vídeo não pôde ser convertido",
         "animatedGif": "GIF animado mantido como está no upload",
         "animatedGifImageField": "GIF animado usado em campo de imagem; mantido como está",
-        "animatedGifDisabled": "Conversão de GIF animado desligada"
+        "animatedGifDisabled": "Conversão de GIF animado desligada",
+        "loopLength": "Som em repetição mantido como está: a versão convertida daria um estalo a cada volta"
       },
       "OptimizedBatch": "{count} arquivos otimizados, {mb} MB economizados."
     },
@@ -545,8 +527,8 @@
       "WaitingTurn": "Aguardando sua vez de carregar a cena (posição {position} na fila)."
     },
     "Cdn": {
-      "Found": "CDN com cache detectado (cf-cache-status: {status}). O perfil automático passa a usar o CDN.",
-      "NotFound": "Nenhum CDN com cache detectado (resultado: {status}). O perfil automático usa os limites do túnel.",
+      "Found": "Foi encontrado um CDN que guarda os arquivos (resultado do teste: {status}). O perfil automático passa a usá-lo.",
+      "NotFound": "Nenhum CDN que guarde os arquivos foi encontrado (resultado do teste: {status}). O perfil automático usa os limites de uma conexão sem CDN.",
       "Status": {
         "HIT": "Em cache (HIT)",
         "MISS": "Não estava em cache (MISS)",
@@ -567,7 +549,8 @@
     "Sw": {
       "Version": "Versão",
       "OutdatedBadge": "desatualizado",
-      "Outdated": "O optimal-foundry-sw.js na raiz da pasta Data está desatualizado (v{version}, esperado v{expected}). Copie de novo o modules/optimal-foundry/sw.js para lá.",
+      "Outdated": "Optimal Foundry: o arquivo optimal-foundry-sw.js que está na pasta Data do Foundry é uma cópia de uma versão antiga do módulo (v{version}, esperado v{expected}). Troque pelo arquivo-ponte de mesmo nome que está na pasta do módulo (Data/modules/optimal-foundry); depois disso, as atualizações do módulo não pedem nova cópia.",
+      "OutdatedServer": "Optimal Foundry: o cache local ainda está rodando uma versão antiga (v{version}, esperado v{expected}) e o servidor não ofereceu uma mais nova. Recarregue a página; se este aviso voltar, o servidor ou um CDN na frente dele ainda está entregando um modules/optimal-foundry/sw.js antigo.",
       "Persisted": "Armazenamento persistente"
     },
     "Preload": {
@@ -575,21 +558,24 @@
     },
     "P2P": {
       "SwReason": {
-        "insecure": "O Service Worker precisa de HTTPS ou localhost.",
-        "unsupported": "Este navegador não tem Service Worker ou Cache Storage.",
-        "scopeDenied": "O servidor não envia \"Service-Worker-Allowed: /\". Copie sw.js para a raiz da pasta Data como optimal-foundry-sw.js.",
-        "notFound": "Não foi possível baixar o sw.js do módulo.",
-        "notActive": "O Service Worker foi registrado, mas não ativou a tempo. Recarregue a página.",
-        "error": "O Service Worker falhou ao iniciar. Veja o console."
+        "insecure": "O cache local precisa de HTTPS (ou localhost).",
+        "unsupported": "Este navegador não consegue manter um cache local.",
+        "scopeDenied": "O cache local não pôde começar: o arquivo-ponte do módulo não está na pasta Data do Foundry.",
+        "notFound": "O cache local não pôde começar: o arquivo do módulo não foi encontrado no servidor.",
+        "notActive": "O cache local foi instalado, mas não começou a tempo. Recarregue a página.",
+        "error": "O cache local falhou ao iniciar. Veja o console."
       },
       "SwarmReason": {
-        "optOut": "Você desligou o P2P neste navegador.",
-        "insecure": "O P2P precisa de HTTPS ou localhost.",
-        "noWebRTC": "Este navegador não tem WebRTC.",
-        "noCrypto": "Este navegador não tem Web Crypto para conferir os arquivos.",
-        "noCache": "Este navegador não tem Cache Storage.",
-        "error": "O P2P falhou ao iniciar. Veja o console.",
-        "local": "Este navegador acessa o servidor localmente; não semeia nem baixa por P2P (o upload dividiria o link do servidor)."
+        "disabled": "O compartilhamento está desligado nas configurações do módulo.",
+        "cdn": "O jogo está atrás de um CDN, que já entrega os arquivos rápido, então os jogadores não mandam arquivos uns para os outros.",
+        "notChosen": "Você ainda não escolheu se este navegador compartilha arquivos com os outros jogadores. Até escolher, ele fica de fora.",
+        "optOut": "Você desligou o compartilhamento neste navegador.",
+        "insecure": "O compartilhamento precisa de HTTPS (ou localhost).",
+        "noWebRTC": "Este navegador não consegue abrir conexões diretas com outros jogadores.",
+        "noCrypto": "Este navegador não consegue conferir os arquivos que receberia.",
+        "noCache": "O cache local não está ativo neste navegador, e o compartilhamento precisa dele.",
+        "error": "O compartilhamento falhou ao iniciar. Veja o console.",
+        "local": "Este navegador roda no próprio computador do servidor, então fica de fora do compartilhamento de propósito: o que ele enviasse usaria a internet do servidor."
       },
       "PeerState": {
         "connecting": "Conectando",
@@ -597,28 +583,38 @@
         "failed": "Falhou",
         "closed": "Fechado"
       },
-      "LastFailure": "Última falha: {name}, {reason} (local: {local}; remoto: {remote})"
+      "LastFailure": "Última conexão que falhou: {name}: {reason}",
+      "LastFailureRoutes": "caminhos tentados: aqui {local}; lá {remote}",
+      "FailReason": {
+        "iceTimeout": "os dois navegadores não acharam um caminho direto entre si a tempo (costuma ser roteador ou rede restrita)",
+        "failed": "não foi possível fazer a conexão direta",
+        "disconnected": "a conexão caiu",
+        "error": "o navegador recusou abrir a conexão"
+      }
     },
     "Connection": {
       "Title": "Minha conexão",
       "Menu": {
         "Name": "Minha conexão",
         "Label": "Abrir",
-        "Hint": "Veja como este aparelho carrega o jogo (cache local, P2P, pré-carregamento) e ajuste as opções dele."
+        "Hint": "Veja como este aparelho carrega o jogo (cache local, compartilhamento com os outros jogadores, download antecipado) e ajuste as opções dele."
       },
       "Status": "Este aparelho",
       "Cache": "Cache local",
       "CacheUsage": "{used} de {quota} · {files} arquivos",
-      "P2POn": "Ligado · {peers} pares · ↑ {up} ↓ {down}",
-      "PreloadProgress": "Ligado · {done} de {total} arquivos",
+      "P2POn": "Ligado · {peers} conectado(s) · ↑ {up} ↓ {down}",
+      "PreloadProgress": "{scope} · {done} de {total} arquivos",
       "Options": "Opções deste aparelho",
       "OptionsHint": "Ficam salvas só neste navegador; não mudam nada para os outros jogadores nem para o mestre.",
       "ClearCache": "Limpar cache deste aparelho",
       "ClearCacheConfirm": "Apagar os arquivos otimizados guardados neste navegador? Eles são baixados de novo quando precisar.",
-      "ClearCacheDone": "Optimal Foundry: cache limpo ({size} liberados)."
+      "ClearCacheDone": "Optimal Foundry: cache limpo ({size} liberados).",
+      "CacheNotEnabled": "O mestre ainda não ligou o cache local neste servidor. Até lá, os arquivos são baixados de novo a cada sessão e os jogadores não conseguem compartilhá-los.",
+      "NotChosen": "Você ainda não respondeu às primeiras perguntas deste navegador. Até responder, ele não compartilha nada com os outros jogadores.",
+      "Choose": "Escolher"
     },
     "Cleanup": {
-      "Intro": "Os arquivos originais que o módulo já trocou por versões otimizadas continuam ocupando espaço. O Foundry não deixa módulos apagarem arquivos, então a limpeza esvazia cada original: o arquivo continua na pasta com o mesmo nome, mas fica com 0 bytes e para de ocupar espaço. Só entram arquivos da pasta deste mundo, já convertidos, que nada no mundo menciona mais (cenas, fichas, diários, macros, chat, configurações e compêndios do mundo) e cuja versão otimizada está íntegra. Outros mundos não são verificados: se algum deles usa arquivos da pasta deste mundo, não esvazie.",
+      "Intro": "Os arquivos originais que o módulo já trocou por versões otimizadas continuam ocupando espaço. O Foundry não deixa módulos apagarem arquivos, então a limpeza esvazia cada original: o arquivo continua na pasta com o mesmo nome, mas fica com 0 bytes e para de ocupar espaço. Só entram arquivos da pasta deste mundo, já convertidos, que nada do que este mundo carrega menciona (cenas, fichas, diários, macros, chat, configurações, todos os compêndios, inclusive os do sistema e dos módulos ativos, e as descrições do mundo, do sistema e dos módulos; arte de token escolhida por um padrão de nome conta como em uso) e cuja versão otimizada está íntegra. O que a conferência não enxerga: outros mundos deste servidor, compêndios de módulos desligados e macros que montam o nome do arquivo enquanto rodam. Se algum deles usa arquivos da pasta deste mundo, não esvazie.",
       "Progress": "Esvaziando {done} de {total}…",
       "LastRun": "Última limpeza",
       "LastSummary": "{emptied} esvaziado(s), {kept} mantido(s), {freed} liberados",
@@ -628,22 +624,23 @@
       "NotAnalyzed": "Clique em Analisar para procurar originais que já podem ser esvaziados.",
       "None": "Nenhum original pode ser esvaziado agora.",
       "InUse": "{count} ainda em uso no mundo",
-      "OutsideWorld": "{count} fora da pasta do mundo",
+      "OutsideWorld": "{count} fora da pasta do mundo ou sem como conferir",
       "BrokenCopy": "{count} com versão otimizada ausente ou diferente",
-      "Gone": "{count} já vazio(s) ou removido(s)",
+      "Gone": "{count} já vazio(s)",
+      "Missing": "{count} não encontrado(s) no servidor",
       "SelectAll": "Selecionar todos",
       "Original": "Original",
       "Replacement": "Otimizado",
       "CleanSelected": "Esvaziar selecionados ({count} · {size})",
       "CleanAll": "Esvaziar todos ({count} · {size})",
       "ConfirmTitle": "Esvaziar originais",
-      "Confirm": "Esvaziar {count} original(is) e liberar {size}? Cada arquivo fica com 0 bytes e o conteúdo não pode ser recuperado. Cenas, fichas e playlists continuam usando as versões otimizadas, mas Desfazer deixa de valer para esses arquivos. Antes de esvaziar, cada arquivo é conferido de novo.",
+      "Confirm": "Esvaziar {count} original(is) e liberar {size}? Cenas, fichas e playlists continuam usando as versões otimizadas. Antes de esvaziar, cada arquivo é conferido de novo.",
       "ConfirmYes": "Esvaziar",
       "Emptied": "original esvaziado",
       "Reason": {
         "notEligible": "não pode mais ser esvaziado",
         "inUse": "voltou a ser mencionado no mundo",
-        "gone": "já estava vazio ou removido",
+        "gone": "já estava vazio",
         "changed": "mudou depois da conversão",
         "noHash": "sem hash registrado",
         "copyMissing": "versão otimizada não existe",
@@ -652,10 +649,19 @@
         "uploadFailed": "o servidor recusou o arquivo vazio",
         "error": "erro",
         "unknownSize": "o servidor não informou o tamanho",
-        "uncertain": "não deu para confirmar se esvaziou; ficou marcado como esvaziado por segurança"
+        "uncertain": "não deu para confirmar se esvaziou; ficou marcado como esvaziado por segurança",
+        "missing": "não foi encontrado no servidor; nada foi alterado",
+        "notCoordinator": "não chegou a ser conferido: outra sessão de mestre assumiu a otimização"
+      },
+      "Error": {
+        "UndoRunning": "Um Desfazer está em andamento. Tente a limpeza de novo quando ele terminar.",
+        "NotCoordinator": "Só a sessão de mestre que coordena a otimização pode fazer a limpeza.",
+        "Compendium": "Não foi possível ler o compêndio {pack}, então nada foi esvaziado ({error})."
       },
       "NotCoordinator": "A limpeza só roda na sessão de mestre que coordena a otimização (o mestre de maior permissão, na aba aberta primeiro). Os botões ficam bloqueados aqui.",
-      "Lead": "Esvazia os originais já substituídos para liberar espaço. Não tem volta."
+      "Lead": "Esvazia os originais já substituídos para liberar espaço. Não tem volta, e os outros mundos deste servidor não são verificados.",
+      "ConfirmOtherWorlds": "Os outros mundos deste servidor não são verificados. Se outro mundo usa um destes arquivos, ele vai ficar quebrado lá.",
+      "ConfirmNoUndo": "Não tem volta: cada arquivo fica com 0 bytes, o conteúdo não pode ser recuperado e Desfazer deixa de valer para ele."
     },
     "Config": {
       "Title": "Optimal Foundry: configurações",
@@ -700,7 +706,8 @@
       "Save": "Salvar",
       "Reset": "Valores padrão",
       "Saved": "{count} configuração(ões) salva(s).",
-      "Welcome": "Boas-vindas"
+      "Welcome": "Boas-vindas",
+      "WelcomeUnsaved": "Há alterações aqui que ainda não foram salvas. Salvar e abrir a tela de boas-vindas?"
     },
     "Tracker": {
       "Toggle": "Painel do Optimal Foundry",
@@ -708,12 +715,10 @@
       "Collapse": "Recolher",
       "Expand": "Expandir",
       "Hide": "Esconder (volta pelo botão na barra de Tokens)",
-      "PeersHint": "P2P: conexões abertas, enviado e recebido",
       "PlayersTitle": "Jogadores",
       "PreloadOff": "O pré-carregamento está desligado.",
       "NoPlayers": "Nenhum jogador conectado.",
       "ReadyCount": "{ready}/{total} prontos",
-      "P2POff": "P2P desligado",
       "Setup": "Configurar",
       "Review": "Revisar",
       "NextTip": "Próximas cenas: {next} arquivos ({left} faltando)",
@@ -728,7 +733,8 @@
         "Waiting": "Esperando a rede ficar livre · {queued} na fila",
         "ExistingOff": "Arquivos existentes não são otimizados.",
         "Done": "Tudo em dia · {saved}% menor",
-        "Idle": "Nada para converter agora."
+        "Idle": "Nada para converter agora.",
+        "HeavyWaiting": "{count} arquivo(s) pesado(s) esperando os jogadores saírem"
       },
       "State": {
         "stale": "Sem notícias há algum tempo",
@@ -741,11 +747,14 @@
       },
       "PlayersOtherGM": "Os jogadores aparecem na sessão de mestre que coordena.",
       "PlayersHint": "A barra mostra quanto cada jogador já tem do que vem a seguir: as cenas que alguém está vendo, a cena ativa, as vizinhas e o que está tocando. Passe o mouse num jogador para ver os detalhes.",
-      "PlanHint": "Fila do pré-carregamento: agora · prováveis · depois"
+      "PlanHint": "Fila do pré-carregamento: agora · prováveis · depois",
+      "ConvertNow": "Converter agora",
+      "AllReady": "Todos prontos para {scene}",
+      "AllReadyNotice": "Optimal Foundry: todos os jogadores já têm o que {scene} precisa."
     },
     "Welcome": {
       "Title": "Bem-vindo ao Optimal Foundry",
-      "Intro": "O módulo deixa o jogo mais leve: converte imagens, vídeos e sons para formatos menores, baixa com antecedência o que os jogadores vão precisar e deixa os jogadores trocarem arquivos entre si. Escolha abaixo como ele funciona neste mundo. Dá para mudar tudo depois, nas configurações do módulo.",
+      "Intro": "O módulo deixa o jogo mais leve: converte imagens, vídeos e sons para formatos menores, baixa com antecedência o que os jogadores vão precisar e deixa os jogadores compartilharem arquivos entre si. Escolha abaixo como ele funciona neste mundo. Dá para mudar tudo depois, nas configurações do módulo.",
       "PresetTitle": "Qualidade dos arquivos",
       "PresetHint": "Quanto comprimir. O recomendado não muda nada que dê para ver.",
       "ModeTitle": "Arquivos que o mundo já tem",
@@ -773,7 +782,7 @@
       "UploadHint": "Quanto a internet de quem hospeda o Foundry consegue enviar (velocidade de upload). O módulo usa isso para não engasgar a conexão.",
       "TrackerName": "Mostrar o painel flutuante",
       "TrackerHint": "Um painel pequeno, só para o mestre, com o que está sendo otimizado e se cada jogador já tem o que vem. Dá para arrastar, recolher e esconder; volta pelo botão na barra de Tokens.",
-      "Outro": "Enquanto esta tela não for concluída, nenhum arquivo existente é convertido. O pré-carregamento e o P2P já funcionam com o padrão.",
+      "Outro": "Enquanto esta tela não for concluída, nenhum arquivo existente é convertido. O download antecipado já funciona com o padrão; o compartilhamento começa para cada jogador quando ele escolher.",
       "Later": "Agora não",
       "Start": "Começar",
       "LaterNotice": "Tudo bem. A tela volta na próxima vez que você entrar; até lá, nenhum arquivo existente é convertido.",
@@ -781,7 +790,91 @@
       "Lead": "Escolha como o módulo funciona neste mundo. Dá para mudar tudo depois.",
       "KeepCurrent": "Personalizado",
       "KeepCurrentHint": "Os valores de qualidade atuais não batem com nenhum preset. Sem marcar um preset, eles ficam como estão.",
-      "OutroShort": "Nada é convertido antes de você clicar em Começar."
+      "OutroShort": "Nada é convertido antes de você clicar em Começar.",
+      "Card": {
+        "recommended": "Mesma aparência, bem menor.",
+        "saver": "Arquivos mínimos, com alguma perda.",
+        "quality": "Comprime pouco, máximo de detalhe.",
+        "networkOnly": "Nenhum arquivo é convertido.",
+        "review": "Você aprova cada arquivo antes.",
+        "auto": "Converte tudo em segundo plano.",
+        "off": "Os arquivos existentes ficam como estão.",
+        "optimizeUploads": "O que for enviado já sobe leve.",
+        "preloadEnabled": "Os jogadores recebem as próximas cenas antes.",
+        "p2pEnabled": "Os jogadores passam arquivos entre si.",
+        "tracker": "Uma caixinha de estado sobre o mapa."
+      }
+    },
+    "Setup": {
+      "Title": "Falta um passo: ligar o cache local",
+      "Missing": "O cache local (e o compartilhamento entre jogadores) só começa a funcionar quando um arquivo pequeno do módulo, o arquivo-ponte, estiver na pasta Data do Foundry.",
+      "Stale": "O arquivo optimal-foundry-sw.js que está na pasta Data do Foundry é de uma versão antiga do módulo e precisa ser trocado pelo novo.",
+      "How": "Copie o arquivo optimal-foundry-sw.js da pasta do módulo (Data/modules/optimal-foundry) para dentro da própria pasta Data, ao lado das pastas modules e worlds, substituindo o arquivo se ele já estiver lá. Depois clique em Verificar de novo.",
+      "Check": "Verificar de novo",
+      "Where": "Onde fica a pasta Data?",
+      "WhereNote": "Esses são os lugares de costume. Se você escolheu outra pasta ao instalar o Foundry, ou usa um serviço de hospedagem, procure a pasta que tem modules e worlds dentro.",
+      "Done": "Optimal Foundry: o cache local está ligado.",
+      "StillMissing": "Optimal Foundry: o arquivo ainda não foi encontrado. Confira se o optimal-foundry-sw.js está dentro da própria pasta Data, com esse nome exato.",
+      "StillStale": "Optimal Foundry: o arquivo na pasta Data ainda é o antigo. Troque pelo que está na pasta do módulo.",
+      "Short": "Cache local: falta um passo",
+      "Finish": "Concluir"
+    },
+    "Blocker": {
+      "insecure": "Esta página não está em HTTPS (nem em localhost), então o navegador não deixa converter arquivos, usar o cache local nem compartilhar entre jogadores aqui. O download antecipado e o controle de rede continuam funcionando. Para usar tudo, abra o mundo por um endereço https://, ou por localhost no próprio computador do servidor.",
+      "unsupported": "Este navegador não consegue converter arquivos. Use um Chrome, Edge ou Firefox atualizado, ou o aplicativo do Foundry."
+    },
+    "Health": {
+      "Title": "Navegador",
+      "Cache": "Cache",
+      "Share": "Compartilha",
+      "Unknown": "sem informação ainda",
+      "SecureYes": "HTTPS: sim",
+      "SecureNo": "HTTPS: não",
+      "CacheYes": "cache local: ligado",
+      "CacheNo": "cache local: desligado",
+      "ShareYes": "compartilhamento: ligado",
+      "ShareNo": "compartilhamento: desligado ({reason})",
+      "Blocker": {
+        "https": "a página não está em HTTPS",
+        "cache": "o cache local não está ativo nesse navegador",
+        "local": "está no computador do próprio servidor e fica de fora de propósito",
+        "choice": "desligado nesse navegador, ou o jogador ainda não escolheu"
+      }
+    },
+    "Sharing": {
+      "Title": "Compartilhamento entre jogadores",
+      "Intro": "O jogador que já tem um arquivo otimizado envia direto para os outros, o que poupa o upload de quem hospeda. Todo arquivo é conferido antes de ser usado. Um navegador no computador do próprio servidor nunca participa.",
+      "Off": "Compartilhamento desligado",
+      "OffSetting": "Está desligado nas configurações do módulo.",
+      "OffCdn": "Atrás de um CDN ele não é usado: o CDN já poupa a sua internet, então os jogadores não ganhariam nada trocando arquivos entre si.",
+      "Count": "{sharing} compartilhando · {links} conexão(ões)",
+      "Nobody": "Ninguém compartilhando ainda",
+      "NoPlayers": "Nenhum jogador conectado.",
+      "Moved": "Trocado entre os jogadores",
+      "Why": {
+        "https": "A página dos jogadores não está em HTTPS, e o compartilhamento precisa disso.",
+        "cache": "O cache local não está ativo no navegador dos jogadores, e o compartilhamento precisa dele.",
+        "choice": "Os jogadores desligaram, ou ainda não escolheram (cada um é perguntado na primeira vez que entra).",
+        "local": "Os jogadores estão no computador do próprio servidor e ficam de fora de propósito."
+      }
+    },
+    "FirstRun": {
+      "Title": "Sua conexão neste jogo",
+      "Lead": "Escolha como este navegador participa deste jogo. Dá para mudar depois em Minha conexão.",
+      "ShareTitle": "Compartilhar arquivos com os outros jogadores?",
+      "ShareYes": "Sim, compartilhar",
+      "ShareYesLine": "Os arquivos que você já tem vão direto para os outros, e os deles para você.",
+      "ShareNo": "Não",
+      "ShareNoLine": "Tudo vem do servidor do jogo.",
+      "ShareIp": "Jogadores que compartilham veem o endereço IP uns dos outros.",
+      "ScopeTitle": "Quanto baixar com antecedência?",
+      "Scope": {
+        "all": "O mundo inteiro, aos poucos.",
+        "session": "Só o que esta sessão precisa.",
+        "off": "Os arquivos baixam quando forem usados."
+      },
+      "Outro": "Em internet móvel ou limitada, prefira as opções mais leves.",
+      "Save": "Salvar"
     }
   }
 }

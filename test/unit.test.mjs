@@ -1,7 +1,9 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { extOf, isOptimizedPath } from "../scripts/constants.mjs";
-import { normalizePath, putEntries, removeEntries, flushLibrary, getEntry, getLibrary } from "../scripts/library.mjs";
+import {
+  normalizePath, putEntries, removeEntries, flushLibrary, getEntry, getStoredEntry, getLibrary, indexLibrary, findByOptimized
+} from "../scripts/library.mjs";
 import { baseName, dirName, sanitizeStem, optimizedName, outputLocation } from "../scripts/media/naming.mjs";
 
 test("extOf ignores query and hash and lowercases", () => {
@@ -57,12 +59,21 @@ test("optimizedName uses the first 8 hex of the hash", () => {
   assert.equal(isOptimizedPath(optimizedName("x.wav", "0123456789abcdef", "ogg")), true);
 });
 
-test("outputLocation mirrors read-only and core folders", () => {
-  assert.deepEqual(outputLocation("worlds/w/maps/a.png"), { source: "data", dir: "worlds/w/maps", mirrored: false });
-  assert.deepEqual(outputLocation("modules/pack/art/a.png"), { source: "data", dir: "optimal-foundry/modules/pack/art", mirrored: true });
-  assert.deepEqual(outputLocation("systems/dnd5e/icons/a.png"), { source: "data", dir: "optimal-foundry/systems/dnd5e/icons", mirrored: true });
-  assert.deepEqual(outputLocation("icons/svg/a.png"), { source: "data", dir: "optimal-foundry/icons/svg", mirrored: true });
-  assert.equal(outputLocation("https://cdn.example.com/x/a.png").dir, "optimal-foundry/cdn.example.com/x");
+test("outputLocation: next to the original, or mirrored inside this world's folder for read-only places", () => {
+  globalThis.game = { world: { id: "w" } };
+  try {
+    assert.deepEqual(outputLocation("worlds/w/maps/a.png"), { source: "data", dir: "worlds/w/maps", mirrored: false });
+    assert.deepEqual(outputLocation("assets/maps/a.png"), { source: "data", dir: "assets/maps", mirrored: false });
+    // A backup or a copy of the world folder carries these along.
+    const mirror = "worlds/w/optimal-foundry";
+    assert.deepEqual(outputLocation("modules/pack/art/a.png"), { source: "data", dir: `${mirror}/modules/pack/art`, mirrored: true });
+    assert.deepEqual(outputLocation("systems/dnd5e/icons/a.png"), { source: "data", dir: `${mirror}/systems/dnd5e/icons`, mirrored: true });
+    assert.deepEqual(outputLocation("icons/svg/a.png"), { source: "data", dir: `${mirror}/icons/svg`, mirrored: true });
+    assert.equal(outputLocation("https://cdn.example.com/x/a.png").dir, `${mirror}/cdn.example.com/x`);
+    // The Data-root folder earlier versions mirrored into is an ordinary folder now.
+    assert.deepEqual(outputLocation("optimal-foundry/modules/pack/art/b.png"),
+      { source: "data", dir: "optimal-foundry/modules/pack/art", mirrored: false });
+  } finally { delete globalThis.game; }
 });
 
 /* ------------------------------- library write chain (stubbed Foundry) ------------------------------- */
@@ -120,6 +131,28 @@ test("library: batched window flushes once, flushLibrary forces it", async () =>
   await Promise.all([p1, p2]);
   assert.equal(store.writes, 1);
   assert.deepEqual(Object.keys(store.value).sort(), ["d.png", "e.png"]);
+});
+
+test("library: the key is the original; entries are stored without it and read with it", async () => {
+  const store = stubFoundry();
+  // Written by an earlier version, which repeated the key inside the entry: left as it is.
+  store.value = { "old.png": { original: "old.png", status: "done", optimized: "old.of-11111111.webp" } };
+  const write = putEntries({ original: "/new.png", status: "done", optimized: "new.of-22222222.webp" }, { now: true });
+  assert.equal(getEntry("new.png").original, "new.png", "a pending write is read with its key");
+  assert.equal(getStoredEntry("new.png"), null, "not on the server yet");
+  await write;
+  assert.deepEqual(Object.keys(store.value["new.png"]).sort(), ["at", "optimized", "status"], "no `original` in the setting");
+  assert.equal(store.value["old.png"].original, "old.png");
+  assert.equal(getStoredEntry("new.png").original, "new.png");
+  assert.equal(getEntry("old.png").original, "old.png");
+  assert.deepEqual(Object.values(getLibrary()).map(e => e.original).sort(), ["new.png", "old.png"]);
+  indexLibrary();
+  assert.equal(findByOptimized("/new.of-22222222.webp").original, "new.png", "the reverse index too");
+
+  // A later partial write keeps the entry free of the field.
+  await putEntries({ original: "new.png", rewritten: true }, { now: true });
+  assert.equal("original" in store.value["new.png"], false);
+  assert.equal(getEntry("new.png").rewritten, true);
 });
 
 test("videoBitrate: anchored at 1080p30, sublinear above it, capped by the source", async () => {

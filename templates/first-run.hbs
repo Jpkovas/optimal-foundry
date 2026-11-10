@@ -1,0 +1,34 @@
+<div class="of-settings-body scrollable">
+    <p class="of-welcome-lead">{{localize "OPTIMALFOUNDRY.FirstRun.Lead"}}</p>
+
+    {{#if sharing}}
+    <h3 class="of-title"><i class="fa-solid fa-share-nodes" inert></i> {{localize "OPTIMALFOUNDRY.FirstRun.ShareTitle"}}</h3>
+    <div class="of-pair">
+        {{#each share}}
+        <label class="of-preset of-choice">
+            <input type="radio" name="share" value="{{value}}" {{#if checked}}checked{{/if}}>
+            <i class="{{icon}}" inert></i>
+            <strong>{{label}}</strong>
+            <span>{{line}}</span>
+        </label>
+        {{/each}}
+    </div>
+    <p class="of-note warn"><i class="fa-solid fa-eye" inert></i> {{localize "OPTIMALFOUNDRY.FirstRun.ShareIp"}}</p>
+    {{/if}}
+
+    {{#if preload}}
+    <h3 class="of-title"><i class="fa-solid fa-forward" inert></i> {{localize "OPTIMALFOUNDRY.FirstRun.ScopeTitle"}}</h3>
+    <div class="of-trio">
+        {{#each scopes}}
+        <label class="of-preset of-choice">
+            <input type="radio" name="preloadScope" value="{{id}}" {{#if checked}}checked{{/if}}>
+            <i class="{{icon}}" inert></i>
+            <strong>{{label}}</strong>
+            <span>{{line}}</span>
+        </label>
+        {{/each}}
+    </div>
+    {{/if}}
+
+    <p class="of-muted of-welcome-outro">{{localize "OPTIMALFOUNDRY.FirstRun.Outro"}}</p>
+</div>

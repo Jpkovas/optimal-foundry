@@ -3,7 +3,10 @@ import { getSetting, setSetting, settingDef, PRESETS, PROFILE_KEYS, RELOAD_KEYS,
 import { TEMPLATE, L } from "./common.mjs";
 import { openWelcome } from "./welcome.mjs";
 
-const { ApplicationV2, HandlebarsApplicationMixin } = foundry.applications.api;
+const { ApplicationV2, HandlebarsApplicationMixin, DialogV2 } = foundry.applications.api;
+
+/** Every setting the form edits. */
+const KEYS = () => [...BASIC, ...ADVANCED.flatMap(g => g.keys)];
 
 /** What the GM sees first: the few switches that decide what the module does. */
 const BASIC = ["mediaEnabled", "optimizeUploads", "backfillMode", "keepResolution", "networkProfile", "hostUploadMbps",
@@ -50,7 +53,7 @@ export class OptimalFoundrySettings extends HandlebarsApplicationMixin(Applicati
   /** @override */
   async _prepareContext(options) {
     const context = await super._prepareContext(options);
-    const values = Object.fromEntries([...BASIC, ...ADVANCED.flatMap(g => g.keys)].map(k => [k, getSetting(k)]));
+    const values = Object.fromEntries(KEYS().map(k => [k, getSetting(k)]));
     const current = matchPreset(values);
     const custom = values.networkProfile === "custom";
     return Object.assign(context, {
@@ -101,22 +104,33 @@ export class OptimalFoundrySettings extends HandlebarsApplicationMixin(Applicati
     this.#sync();
   }
 
-  /** The welcome screen again (it saves on its own); this window closes so the two never disagree. */
-  static #onWelcome() {
-    this.close();
+  /**
+   * The welcome screen again (it saves on its own); this window closes so the two never disagree. Edits not saved
+   * yet are never thrown away: the GM saves them first, or stays here.
+   */
+  static async #onWelcome() {
+    if (changedFields(this.element).length) {
+      const save = await DialogV2.confirm({
+        window: { title: "OPTIMALFOUNDRY.Config.Welcome", icon: "fa-solid fa-hand-sparkles" },
+        content: `<p>${L("Config.WelcomeUnsaved")}</p>`,
+        yes: { label: "OPTIMALFOUNDRY.Config.Save", icon: "fa-solid fa-floppy-disk" },
+        rejectClose: false
+      });
+      if (!save) return;
+      await this.submit();
+    }
+    await this.close();
     openWelcome();
   }
 
   static #onReset() {
-    for (const k of [...BASIC, ...ADVANCED.flatMap(g => g.keys)]) writeField(this.element, k, settingDef(k).default);
+    for (const k of KEYS()) writeField(this.element, k, settingDef(k).default);
     this.#sync();
   }
 
   static async #onSubmit(_event, form) {
     const changed = [];
-    for (const k of [...BASIC, ...ADVANCED.flatMap(g => g.keys)]) {
-      const value = readField(form, k);
-      if (value === undefined || value === getSetting(k)) continue;
+    for (const [k, value] of changedFields(form)) {
       try {
         await setSetting(k, value);
         changed.push(k);
@@ -129,6 +143,11 @@ export class OptimalFoundrySettings extends HandlebarsApplicationMixin(Applicati
     ui.notifications.info(L("Config.Saved", { count: changed.length }));
     if (changed.some(k => RELOAD_KEYS.includes(k))) await foundry.applications.settings.SettingsConfig.reloadConfirm({ world: true });
   }
+}
+
+/** The fields whose value differs from the stored setting, as `[key, value]`. */
+function changedFields(form) {
+  return KEYS().map(k => [k, readField(form, k)]).filter(([k, value]) => (value !== undefined) && (value !== getSetting(k)));
 }
 
 /** Template context for one setting. */

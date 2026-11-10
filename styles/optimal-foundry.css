@@ -10,6 +10,16 @@
   --of-surface: rgba(127, 127, 127, 0.08);
 }
 
+/* Light application theme: the status colours above are tuned for dark windows and wash out on parchment.
+   The floating tracker is always dark (.theme-dark), so it keeps them. */
+body.theme-light .optimal-foundry:not(.theme-dark),
+.optimal-foundry.themed.theme-light {
+  --of-ok: #1c7a26;
+  --of-warn: #9a5a00;
+  --of-bad: #b3261e;
+  --of-info: #1f5fae;
+}
+
 .optimal-foundry .window-content {
   display: flex;
   flex-direction: column;
@@ -36,11 +46,16 @@
 
 /* ---------- Header pills ---------- */
 
+.optimal-foundry .of-top {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  flex: 0 0 auto;
+}
 .optimal-foundry .of-header {
   display: flex;
   flex-wrap: wrap;
   gap: 0.375rem;
-  flex: 0 0 auto;
 }
 
 .optimal-foundry .of-pill,
@@ -226,8 +241,12 @@
   position: sticky;
   top: 0;
   z-index: 1;
-  background: var(--color-cool-5, #23232b);
-  color: var(--color-text-secondary, inherit);
+  /* Opaque in every theme, because rows scroll under it: Foundry's own table-header tint over the window's
+     background (a dark colour in the dark theme, the parchment in the light one), with the theme's text colour. */
+  background:
+    linear-gradient(var(--table-header-bg-color, rgba(127, 127, 127, 0.2)), var(--table-header-bg-color, rgba(127, 127, 127, 0.2))),
+    var(--background, #1b1a21);
+  color: var(--table-header-text-color, inherit);
   font-weight: normal;
 }
 .optimal-foundry .of-table tbody tr:hover {
@@ -246,13 +265,34 @@
   width: 1.5rem;
   text-align: center;
 }
-.optimal-foundry .of-actions a,
-.optimal-foundry .of-list a {
-  cursor: pointer;
+
+/* Row actions and tracker tools are real buttons (keyboard and touch reach them) drawn as plain icons. */
+.optimal-foundry button.of-icon-btn {
+  display: inline-flex;
+  flex: 0 0 auto;
+  width: auto;
+  min-width: 1.6rem;
+  height: auto;
+  min-height: 1.6rem;
+  padding: 0 0.3rem;
+  border: none;
+  background: none;
+  box-shadow: none;
+  color: inherit;
+  font-size: inherit;
+  line-height: 1;
+  vertical-align: middle;
+  opacity: 0.8;
 }
-.optimal-foundry .of-actions a:hover,
-.optimal-foundry .of-list a:hover {
-  color: var(--of-bad);
+.optimal-foundry button.of-icon-btn:is(:hover, :focus-visible) {
+  background: none;
+  color: var(--of-info);
+  opacity: 1;
+}
+.optimal-foundry button.of-icon-btn.of-danger:is(:hover, :focus-visible) { color: var(--of-bad); }
+.optimal-foundry button.of-icon-btn:focus-visible {
+  outline: 2px solid var(--color-border-highlight, #ff6400);
+  outline-offset: -2px;
 }
 
 /* ---------- Preload editors ---------- */
@@ -331,9 +371,9 @@
 .optimal-foundry .of-actions {
   white-space: nowrap;
 }
-.optimal-foundry .of-actions a + a {
-  margin-left: 0.4rem;
-}
+.optimal-foundry .of-table .of-health { white-space: normal; }
+.optimal-foundry .of-health .of-chip { margin: 0 0.15rem 0.1rem 0; }
+.optimal-foundry .of-health .of-muted { font-size: var(--font-size-11, 0.75rem); }
 .optimal-foundry .of-refs {
   display: flex;
   flex-wrap: wrap;
@@ -359,6 +399,10 @@
 .optimal-foundry .of-option input[type="number"] {
   flex: 0 0 6.5rem;
   width: 6.5rem;
+}
+.optimal-foundry .of-option select {
+  flex: 0 0 9.5rem;
+  width: 9.5rem;
 }
 .optimal-foundry .of-option input[type="checkbox"] {
   flex: 0 0 auto;
@@ -413,7 +457,7 @@
 .optimal-foundry .of-preset > i { font-size: 1.15rem; }
 .optimal-foundry .of-preset span { font-size: var(--font-size-12, 12px); color: var(--of-muted); }
 .optimal-foundry .of-preset:is(:hover, :focus-visible) {
-  background: rgba(255, 255, 255, 0.06);
+  background: var(--of-surface);
   color: inherit;
   border-color: var(--color-border-highlight, #ff6400);
   box-shadow: none;
@@ -456,6 +500,8 @@
 
 #optimal-foundry-tracker {
   position: fixed;
+  /* Core gives every application the height of a title bar at least; collapsed, this one is a single line. */
+  min-height: 0;
   z-index: calc(var(--z-index-ui, 60) + 1);
   font-size: var(--font-size-12, 0.8rem);
   color: var(--color-text-primary, #dee9ed);
@@ -483,11 +529,7 @@
   flex: 1;
   font-size: var(--font-size-13, 0.85rem);
 }
-.of-tracker-tool {
-  cursor: pointer;
-  opacity: 0.7;
-}
-.of-tracker-tool:hover { opacity: 1; }
+.of-tracker .of-tracker-tool { color: inherit; }
 
 /* Collapsed: icon + short value per item, one dot per player. */
 .of-tracker .of-mini {
@@ -533,6 +575,9 @@
   letter-spacing: 0.04em;
 }
 .of-tracker-count { margin-left: auto; text-transform: none; letter-spacing: 0; }
+/* Everyone holds what comes next: the count (and the collapsed dots) turn green. */
+.of-tracker-count.ok,
+.of-tracker .of-dots.ok > i { color: var(--of-ok); }
 .of-tracker-row {
   display: flex;
   align-items: center;
@@ -548,12 +593,21 @@
   min-width: 0;
   overflow-wrap: anywhere;
 }
-.of-tracker-link {
-  cursor: pointer;
+.of-tracker button.of-tracker-link {
+  flex: 0 0 auto;
+  width: auto;
+  height: auto;
+  min-height: 1.4rem;
+  padding: 0 0.2rem;
+  border: none;
+  background: none;
+  box-shadow: none;
   color: var(--of-info);
+  font-size: inherit;
   text-decoration: underline;
   white-space: nowrap;
 }
+.of-tracker button.of-tracker-link:focus-visible { outline: 2px solid var(--color-border-highlight, #ff6400); }
 .of-tracker .of-progress {
   width: 100%;
   height: 0.4rem;
@@ -592,6 +646,7 @@
 }
 .of-tracker-foot {
   display: flex;
+  flex-wrap: wrap;
   justify-content: space-between;
   gap: 0.5rem;
   margin-top: 0.3rem;
@@ -604,7 +659,7 @@
 
 /* ---------- Welcome screen (shares the Settings window layout) ---------- */
 
-.optimal-foundry.of-welcome .of-welcome-lead { font-size: var(--font-size-14, 0.95rem); margin: 0.1rem 0 0.25rem; }
+.optimal-foundry .of-welcome-lead { font-size: var(--font-size-14, 0.95rem); margin: 0.1rem 0 0.25rem; }
 .optimal-foundry .of-choice { cursor: pointer; position: relative; }
 .optimal-foundry .of-choice > input[type="radio"] {
   position: absolute;
@@ -634,5 +689,41 @@
 .optimal-foundry .of-switch > input { flex: 0 0 auto; margin: 0; }
 .optimal-foundry .of-switch:has(> input:checked) { border-color: var(--of-ok); }
 .optimal-foundry.of-welcome .of-welcome-upload { margin-top: 0.4rem; }
-.optimal-foundry.of-welcome .of-welcome-outro { margin-top: 0.75rem; }
+.optimal-foundry .of-welcome-outro { margin-top: 0.75rem; }
 .optimal-foundry .of-disabled:not(.form-group) { opacity: 0.5; }
+
+/* One visible line under each card and switch, so nobody needs a hover to know what a choice does. */
+.optimal-foundry .of-switch > span { display: flex; flex-direction: column; gap: 0.1rem; min-width: 0; }
+.optimal-foundry .of-switch small { font-size: var(--font-size-11, 0.75rem); color: var(--of-muted); }
+
+/* ---------- "Finish setup" step of the local cache (welcome screen, dashboard, My connection) ---------- */
+
+.optimal-foundry .of-setup-slot:empty { display: none; }
+.optimal-foundry .of-setup {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  padding: 0.45rem 0.6rem;
+  border: 1px solid var(--of-warn);
+  border-left-width: 3px;
+  border-radius: 4px;
+  background: var(--of-surface);
+}
+.optimal-foundry .of-setup p { margin: 0; }
+.optimal-foundry .of-setup-title { color: var(--of-warn); }
+/* A sentence with its one action beside it (setup step, heavy files waiting, a player's pending choice). */
+.optimal-foundry .of-note-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.6rem;
+}
+.optimal-foundry .of-note-row > p { flex: 1 1 auto; min-width: 0; margin: 0; }
+.optimal-foundry .of-note-row > button { flex: 0 0 auto; width: auto; white-space: nowrap; }
+.optimal-foundry .of-setup summary { cursor: pointer; color: var(--of-muted); }
+.optimal-foundry .of-setup .of-kv { grid-template-columns: max-content 1fr; margin-top: 0.25rem; }
+
+/* ---------- First-run card of a player (shares the Settings window layout) ---------- */
+
+.optimal-foundry.of-first-run .of-pair { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.5rem; }
+.optimal-foundry.of-first-run .of-trio { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0.5rem; }
+.optimal-foundry.of-first-run .of-title { margin-top: 0.5rem; }

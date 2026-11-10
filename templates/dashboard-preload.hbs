@@ -49,8 +49,8 @@
         <li class="{{#if missing}}of-missing{{/if}}">
             <i class="fa-solid fa-map" inert></i>
             <span class="of-grow">{{name}}{{#if missing}} <span class="of-chip bad">{{localize "OPTIMALFOUNDRY.Dashboard.Preload.Missing"}}</span>{{/if}}</span>
-            <a data-action="unmarkScene" data-scene-id="{{id}}" data-tooltip="{{localize "OPTIMALFOUNDRY.Dashboard.Scene.Unmark"}}"
-               aria-label="{{localize "OPTIMALFOUNDRY.Dashboard.Scene.Unmark"}}"><i class="fa-solid fa-xmark" inert></i></a>
+            <button type="button" class="of-icon-btn of-danger" data-action="unmarkScene" data-scene-id="{{id}}" data-tooltip="{{localize "OPTIMALFOUNDRY.Dashboard.Scene.Unmark"}}"
+                    aria-label="{{localize "OPTIMALFOUNDRY.Dashboard.Scene.Unmark"}}"><i class="fa-solid fa-xmark" inert></i></button>
         </li>
         {{/each}}
     </ul>
@@ -59,8 +59,8 @@
     {{/if}}
     {{#if hasSceneChoices}}
     <div class="of-adder">
-        <select aria-label="{{localize "OPTIMALFOUNDRY.Dashboard.Preload.ChooseScene"}}">
-            {{#each sceneChoices}}<option value="{{id}}">{{name}}</option>{{/each}}
+        <select name="of-pick-scene" data-of-pick="scene" aria-label="{{localize "OPTIMALFOUNDRY.Dashboard.Preload.ChooseScene"}}">
+            {{#each sceneChoices}}<option value="{{id}}" {{#if selected}}selected{{/if}}>{{name}}</option>{{/each}}
         </select>
         <button type="button" data-action="markScene"><i class="fa-solid fa-plus" inert></i> {{localize "OPTIMALFOUNDRY.Dashboard.Scene.Mark"}}</button>
     </div>
@@ -76,8 +76,8 @@
                 <li class="{{#if missing}}of-missing{{/if}}">
                     <i class="{{icon}}" inert></i>
                     <span class="of-grow" data-tooltip="{{uuid}}">{{label}} <span class="of-muted">{{typeLabel}}</span></span>
-                    <a data-action="removeRule" data-list="include" data-uuid="{{uuid}}" data-tooltip="{{localize "OPTIMALFOUNDRY.Dashboard.Preload.Remove"}}"
-                       aria-label="{{localize "OPTIMALFOUNDRY.Dashboard.Preload.Remove"}}"><i class="fa-solid fa-xmark" inert></i></a>
+                    <button type="button" class="of-icon-btn of-danger" data-action="removeRule" data-list="include" data-uuid="{{uuid}}" data-tooltip="{{localize "OPTIMALFOUNDRY.Dashboard.Preload.Remove"}}"
+                            aria-label="{{localize "OPTIMALFOUNDRY.Dashboard.Preload.Remove"}}"><i class="fa-solid fa-xmark" inert></i></button>
                 </li>
                 {{/each}}
             </ul>
@@ -86,9 +86,9 @@
             {{/if}}
             {{#if hasGroups}}
             <div class="of-adder">
-                <select aria-label="{{localize "OPTIMALFOUNDRY.Dashboard.Preload.ChooseRule"}}">
-                    {{#each groups}}
-                    <optgroup label="{{label}}">{{#each options}}<option value="{{uuid}}">{{name}}</option>{{/each}}</optgroup>
+                <select name="of-pick-include" data-of-pick="include" aria-label="{{localize "OPTIMALFOUNDRY.Dashboard.Preload.ChooseRule"}}">
+                    {{#each includeGroups}}
+                    <optgroup label="{{label}}">{{#each options}}<option value="{{uuid}}" {{#if selected}}selected{{/if}}>{{name}}</option>{{/each}}</optgroup>
                     {{/each}}
                 </select>
                 <button type="button" data-action="addRule" data-list="include"><i class="fa-solid fa-plus" inert></i> {{localize "OPTIMALFOUNDRY.Dashboard.Preload.Add"}}</button>
@@ -103,8 +103,8 @@
                 <li class="{{#if missing}}of-missing{{/if}}">
                     <i class="{{icon}}" inert></i>
                     <span class="of-grow" data-tooltip="{{uuid}}">{{label}} <span class="of-muted">{{typeLabel}}</span></span>
-                    <a data-action="removeRule" data-list="exclude" data-uuid="{{uuid}}" data-tooltip="{{localize "OPTIMALFOUNDRY.Dashboard.Preload.Remove"}}"
-                       aria-label="{{localize "OPTIMALFOUNDRY.Dashboard.Preload.Remove"}}"><i class="fa-solid fa-xmark" inert></i></a>
+                    <button type="button" class="of-icon-btn of-danger" data-action="removeRule" data-list="exclude" data-uuid="{{uuid}}" data-tooltip="{{localize "OPTIMALFOUNDRY.Dashboard.Preload.Remove"}}"
+                            aria-label="{{localize "OPTIMALFOUNDRY.Dashboard.Preload.Remove"}}"><i class="fa-solid fa-xmark" inert></i></button>
                 </li>
                 {{/each}}
             </ul>
@@ -113,9 +113,9 @@
             {{/if}}
             {{#if hasGroups}}
             <div class="of-adder">
-                <select aria-label="{{localize "OPTIMALFOUNDRY.Dashboard.Preload.ChooseRule"}}">
-                    {{#each groups}}
-                    <optgroup label="{{label}}">{{#each options}}<option value="{{uuid}}">{{name}}</option>{{/each}}</optgroup>
+                <select name="of-pick-exclude" data-of-pick="exclude" aria-label="{{localize "OPTIMALFOUNDRY.Dashboard.Preload.ChooseRule"}}">
+                    {{#each excludeGroups}}
+                    <optgroup label="{{label}}">{{#each options}}<option value="{{uuid}}" {{#if selected}}selected{{/if}}>{{name}}</option>{{/each}}</optgroup>
                     {{/each}}
                 </select>
                 <button type="button" data-action="addRule" data-list="exclude"><i class="fa-solid fa-plus" inert></i> {{localize "OPTIMALFOUNDRY.Dashboard.Preload.Add"}}</button>

@@ -1,38 +1,48 @@
 <div class="of-tracker-panel {{#if collapsed}}collapsed{{/if}}">
     {{#if collapsed}}
     <div class="of-tracker-head" data-of-drag>
-        <i class="fa-solid fa-gauge-high of-tracker-logo" data-tooltip="Optimal Foundry" inert></i>
+        <span class="of-tracker-logo" data-tooltip="Optimal Foundry"><i class="fa-solid fa-gauge-high" inert></i></span>
+        {{#if setup}}<span class="of-mini warn" data-tooltip="{{localize "OPTIMALFOUNDRY.Setup.Short"}}"><i class="fa-solid fa-triangle-exclamation" inert></i></span>{{/if}}
         <span class="of-mini {{media.cls}}" data-tooltip-text="{{media.text}}"><i class="{{media.icon}}" inert></i>{{#if media.short}}<span>{{media.short}}</span>{{/if}}</span>
         {{#if players.length}}
-        <span class="of-mini of-dots" data-tooltip-text="{{readyTip}}">
+        <span class="of-mini of-dots {{#if allReady}}ok{{/if}}" data-tooltip-text="{{#if allReady}}{{allReady}}{{else}}{{readyTip}}{{/if}}">
             {{#each players}}<span class="of-dot {{state}}" data-tooltip-text="{{dotTip}}"></span>{{/each}}
+            {{#if allReady}}<i class="fa-solid fa-check" inert></i>{{/if}}
         </span>
         {{/if}}
-        {{#if p2p}}<span class="of-mini" data-tooltip="{{localize "OPTIMALFOUNDRY.Tracker.PeersHint"}}"><i class="fa-solid fa-share-nodes" inert></i><span>{{p2p.peers}}</span></span>{{/if}}
-        <a class="of-tracker-tool" data-action="collapse" data-tooltip="{{localize "OPTIMALFOUNDRY.Tracker.Expand"}}" aria-label="{{localize "OPTIMALFOUNDRY.Tracker.Expand"}}"><i class="fa-solid fa-chevron-down" inert></i></a>
+        {{#if sharing.on}}<span class="of-mini" data-tooltip-text="{{sharing.tip}}"><i class="fa-solid fa-share-nodes" inert></i><span>{{sharing.short}}</span></span>{{/if}}
+        <button type="button" class="of-icon-btn of-tracker-tool" data-action="collapse" data-tooltip="{{localize "OPTIMALFOUNDRY.Tracker.Expand"}}" aria-label="{{localize "OPTIMALFOUNDRY.Tracker.Expand"}}"><i class="fa-solid fa-chevron-down" inert></i></button>
     </div>
     {{else}}
     <div class="of-tracker-head" data-of-drag>
         <i class="fa-solid fa-gauge-high of-tracker-logo" inert></i>
         <strong class="of-tracker-title">Optimal Foundry</strong>
-        <a class="of-tracker-tool" data-action="dashboard" data-tooltip="{{localize "OPTIMALFOUNDRY.Tracker.OpenDashboard"}}" aria-label="{{localize "OPTIMALFOUNDRY.Tracker.OpenDashboard"}}"><i class="fa-solid fa-up-right-from-square" inert></i></a>
-        <a class="of-tracker-tool" data-action="collapse" data-tooltip="{{localize "OPTIMALFOUNDRY.Tracker.Collapse"}}" aria-label="{{localize "OPTIMALFOUNDRY.Tracker.Collapse"}}"><i class="fa-solid fa-chevron-up" inert></i></a>
-        <a class="of-tracker-tool" data-action="hide" data-tooltip="{{localize "OPTIMALFOUNDRY.Tracker.Hide"}}" aria-label="{{localize "OPTIMALFOUNDRY.Tracker.Hide"}}"><i class="fa-solid fa-xmark" inert></i></a>
+        <button type="button" class="of-icon-btn of-tracker-tool" data-action="dashboard" data-tooltip="{{localize "OPTIMALFOUNDRY.Tracker.OpenDashboard"}}" aria-label="{{localize "OPTIMALFOUNDRY.Tracker.OpenDashboard"}}"><i class="fa-solid fa-up-right-from-square" inert></i></button>
+        <button type="button" class="of-icon-btn of-tracker-tool" data-action="collapse" data-tooltip="{{localize "OPTIMALFOUNDRY.Tracker.Collapse"}}" aria-label="{{localize "OPTIMALFOUNDRY.Tracker.Collapse"}}"><i class="fa-solid fa-chevron-up" inert></i></button>
+        <button type="button" class="of-icon-btn of-tracker-tool" data-action="hide" data-tooltip="{{localize "OPTIMALFOUNDRY.Tracker.Hide"}}" aria-label="{{localize "OPTIMALFOUNDRY.Tracker.Hide"}}"><i class="fa-solid fa-xmark" inert></i></button>
     </div>
     <div class="of-tracker-body">
+        {{#if setup}}
+        <div class="of-tracker-row warn">
+            <i class="fa-solid fa-triangle-exclamation" inert></i>
+            <span class="of-tracker-text">{{localize "OPTIMALFOUNDRY.Setup.Short"}}</span>
+            <button type="button" class="of-tracker-link" data-action="dashboard">{{localize "OPTIMALFOUNDRY.Setup.Finish"}}</button>
+        </div>
+        {{/if}}
         <div class="of-tracker-row {{media.cls}}">
             <i class="{{media.icon}}" inert></i>
             <span class="of-tracker-text">{{media.text}}</span>
-            {{#if media.action}}<a class="of-tracker-link" data-action="{{media.action}}">{{media.actionLabel}}</a>{{/if}}
+            {{#if media.action}}<button type="button" class="of-tracker-link" data-action="{{media.action}}">{{media.actionLabel}}</button>{{/if}}
         </div>
         {{#if media.hasProgress}}<progress class="of-progress" max="100" value="{{media.progress}}"></progress>{{/if}}
 
         <div class="of-tracker-section" data-tooltip="{{localize "OPTIMALFOUNDRY.Tracker.PlayersHint"}}">
             <i class="fa-solid fa-users" inert></i> {{localize "OPTIMALFOUNDRY.Tracker.PlayersTitle"}}
-            {{#if readyTip}}<span class="of-tracker-count">{{readyTip}}</span>{{/if}}
+            {{#if readyTip}}<span class="of-tracker-count {{#if allReady}}ok{{/if}}">{{#if allReady}}<i class="fa-solid fa-check" inert></i> {{/if}}{{readyTip}}</span>{{/if}}
         </div>
         {{#unless preloadOn}}<p class="of-tracker-note"><i class="fa-solid fa-power-off" inert></i> {{localize "OPTIMALFOUNDRY.Tracker.PreloadOff"}}</p>{{/unless}}
         {{#if playersNote}}<p class="of-tracker-note">{{playersNote}}</p>{{/if}}
+        {{#if allReady}}<div class="of-tracker-row ok"><i class="fa-solid fa-circle-check" inert></i><span class="of-tracker-text">{{allReady}}</span></div>{{/if}}
         {{#each players}}
         <div class="of-tracker-player" data-tooltip-text="{{tooltip}}">
             <span class="of-dot {{state}}" inert></span>
@@ -44,12 +54,11 @@
 
         <div class="of-tracker-foot">
             {{#if plan}}<span data-tooltip="{{localize "OPTIMALFOUNDRY.Tracker.PlanHint"}}"><i class="fa-solid fa-forward" inert></i> {{plan.now}} · {{plan.likely}} · {{plan.later}}</span>{{/if}}
-            {{#if p2p}}
-            <span data-tooltip="{{localize "OPTIMALFOUNDRY.Tracker.PeersHint"}}"><i class="fa-solid fa-share-nodes" inert></i> {{p2p.peers}} · <i class="fa-solid fa-arrow-up" inert></i> {{p2p.up}} · <i class="fa-solid fa-arrow-down" inert></i> {{p2p.down}}</span>
-            {{else}}
-            <span class="of-muted"><i class="fa-solid fa-share-nodes" inert></i> {{localize "OPTIMALFOUNDRY.Tracker.P2POff"}}</span>
+            {{#if sharing}}
+            <span class="{{#unless sharing.on}}of-muted{{/unless}}" data-tooltip-text="{{sharing.tip}}"><i class="fa-solid fa-share-nodes" inert></i> {{sharing.label}}</span>
             {{/if}}
         </div>
+        {{#if sharing.reason}}<p class="of-tracker-note">{{sharing.reason}}</p>{{/if}}
     </div>
     {{/if}}
 </div>

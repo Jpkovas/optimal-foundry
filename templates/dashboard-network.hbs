@@ -10,13 +10,14 @@
         {{#if limits}}
         <dt>{{localize "OPTIMALFOUNDRY.Dashboard.Network.MaxConcurrent"}}</dt><dd>{{limits.maxConcurrent}}</dd>
         <dt>{{localize "OPTIMALFOUNDRY.Dashboard.Network.HostUpload"}}</dt><dd>{{limits.hostUpload}}</dd>
-        <dt>{{localize "OPTIMALFOUNDRY.Dashboard.Network.PreloadRate"}}</dt><dd>{{limits.preloadRate}}</dd>
+        <dt>{{localize "OPTIMALFOUNDRY.Dashboard.Network.PreloadRate"}}</dt><dd>{{#if budget.slowed}}{{budget.rate}} <span class="of-chip warn"><i class="fa-solid fa-gauge" inert></i> {{localize "OPTIMALFOUNDRY.Dashboard.Network.Slowed"}}</span>{{else}}{{limits.preloadRate}}{{/if}}</dd>
         <dt>{{localize "OPTIMALFOUNDRY.Dashboard.Network.StaggerJoin"}}</dt><dd>{{limits.staggerJoin}}</dd>
-        <dt>{{localize "OPTIMALFOUNDRY.Dashboard.Network.P2P"}}</dt><dd>{{limits.p2p}}</dd>
+        <dt>{{localize "OPTIMALFOUNDRY.Sharing.Title"}}</dt><dd>{{limits.p2p}}{{#if limits.p2pReason}} <span class="of-muted">· {{limits.p2pReason}}</span>{{/if}}</dd>
         <dt>{{localize "OPTIMALFOUNDRY.Dashboard.Network.IdleAfter"}}</dt><dd>{{limits.idle}}</dd>
         <dt>{{localize "OPTIMALFOUNDRY.Dashboard.Network.MaxFile"}}</dt><dd>{{limits.maxFile}}</dd>
         {{/if}}
     </dl>
+    {{#if budget.note}}<p class="of-note warn"><i class="fa-solid fa-gauge" inert></i> {{budget.note}}</p>{{/if}}
 
     <h3 class="of-title of-title-row">
         <span><i class="fa-solid fa-cloud" inert></i> {{localize "OPTIMALFOUNDRY.Dashboard.Network.Cdn"}}</span>
@@ -58,7 +59,7 @@
                 <th>{{localize "OPTIMALFOUNDRY.Dashboard.Network.NextReady"}}</th>
                 <th>{{localize "OPTIMALFOUNDRY.Dashboard.Network.Idle"}}</th>
                 <th>{{localize "OPTIMALFOUNDRY.Dashboard.Network.Preload"}}</th>
-                <th>{{localize "OPTIMALFOUNDRY.Dashboard.Network.P2P"}}</th>
+                <th>{{localize "OPTIMALFOUNDRY.Health.Title"}}</th>
             </tr>
         </thead>
         <tbody>
@@ -71,7 +72,14 @@
                 <td class="{{#if nextDone}}of-ok{{/if}}">{{nextReady}}</td>
                 <td><i class="fa-solid {{#if idle}}fa-moon of-muted{{else}}fa-bolt of-busy{{/if}}" inert></i></td>
                 <td>{{preload}}</td>
-                <td>{{p2p}}</td>
+                <td class="of-health">
+                    {{#if health.known}}
+                    <span class="of-chip {{#if health.secure}}ok{{else}}bad{{/if}}"><i class="fa-solid {{#if health.secure}}fa-check{{else}}fa-xmark{{/if}}" inert></i> HTTPS</span>
+                    <span class="of-chip {{#if health.cache}}ok{{else}}bad{{/if}}"><i class="fa-solid {{#if health.cache}}fa-check{{else}}fa-xmark{{/if}}" inert></i> {{localize "OPTIMALFOUNDRY.Health.Cache"}}</span>
+                    {{#if ../sharingOn}}<span class="of-chip {{#if health.share}}ok{{else}}idle{{/if}}"><i class="fa-solid {{#if health.share}}fa-check{{else}}fa-xmark{{/if}}" inert></i> {{localize "OPTIMALFOUNDRY.Health.Share"}}</span>{{/if}}
+                    {{#if health.blockerLabel}}<div class="of-muted">{{health.blockerLabel}}</div>{{/if}}
+                    {{else}}<span class="of-muted">{{localize "OPTIMALFOUNDRY.Health.Unknown"}}</span>{{/if}}
+                </td>
             </tr>
             {{/each}}
         </tbody>

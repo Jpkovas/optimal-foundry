@@ -3,16 +3,20 @@ import { setSetting } from "../settings.mjs";
 import { isCoordinator } from "../socket.mjs";
 import { markNextScene, upcomingReadiness, preloadPlan } from "../net/preload.mjs";
 import { detectCdn, isLocalOrigin } from "../net/cdn.mjs";
+import { swarmOverview } from "../p2p/swarm.mjs";
 import {
   TEMPLATE, L, maybeL, api, warnOnce, call, setting, num, fmtBytes, fmtRate, fmtCount, fmtDate, basename, yesNo,
-  codeLabel, reasonLabel, describeSw, describeSwarm, LiveApplication
+  codeLabel, reasonLabel, blockerNote, describeSw, describeSwarm, describeSetup, describeSharing, describeHealth,
+  recheckSetup, convertHeavyNow, LiveApplication
 } from "./common.mjs";
 import { registerConnectionUI } from "./connection.mjs";
+import { registerFirstRun } from "./first-run.mjs";
 import { registerSettingsMenu } from "./settings-app.mjs";
 import { registerTracker } from "./tracker.mjs";
 import { registerWelcome } from "./welcome.mjs";
 import { findCleanupCandidates, emptyOriginals } from "../media/cleanup.mjs";
 import { ORIGINS, OUTCOMES } from "../media/backfill.mjs";
+import { conversionBlocker } from "../media/converter.mjs";
 
 const { DialogV2 } = foundry.applications.api;
 
@@ -37,6 +41,7 @@ function scanContext(report) {
       cells: OUTCOMES.map(k => ({ value: num(c[k]) ? fmtCount(num(c[k])) : "—", cls: k })) } : null;
   }).filter(Boolean);
   const notes = [];
+  if (num(report.repaired)) notes.push(L("Dashboard.Scan.Repaired", { count: fmtCount(num(report.repaired)) }));
   if (num(report.external)) notes.push(L("Dashboard.Scan.External", { count: num(report.external), examples: (report.externalExamples ?? []).join(", ") }));
   if (num(report.vector)) notes.push(L("Dashboard.Scan.Vector", { count: num(report.vector) }));
   if (num(report.unreadPacks)) {
@@ -129,7 +134,7 @@ function addSceneContextOptions(_app, options) {
 
 /**
  * Called at `init`: settings menus, scene directory context menu, next-scene indicator, player panel button, the GM
- * tracker (Tokens control toggle) and the first-run welcome screen.
+ * tracker (Tokens control toggle), the GM's first-run welcome screen and the player's first-run card.
  */
 export function registerUI() {
   registerSettingsMenu();
@@ -144,6 +149,7 @@ export function registerUI() {
   registerConnectionUI();
   registerTracker();
   registerWelcome();
+  registerFirstRun();
   Hooks.on("getSceneContextOptions", (app, options) => {
     try { addSceneContextOptions(app, options); } catch (err) { warnOnce("scene context menu", err); }
   });
@@ -191,12 +197,14 @@ export class OptimalFoundryDashboard extends LiveApplication {
       reviewApproveAll: OptimalFoundryDashboard.#onReviewApproveAll,
       reviewDecline: OptimalFoundryDashboard.#onReviewDecline,
       reviewPreview: OptimalFoundryDashboard.#onReviewPreview,
+      recheckSw: OptimalFoundryDashboard.#onRecheck,
+      runHeavy: () => convertHeavyNow(),
       welcome: () => api().openWelcome?.()
     }
   };
 
   static PARTS = {
-    header: { template: TEMPLATE("dashboard") },
+    header: { template: TEMPLATE("dashboard"), templates: [TEMPLATE("setup")] },
     tabs: { template: "templates/generic/tab-navigation.hbs" },
     media: { template: TEMPLATE("dashboard-media"), scrollable: [""] },
     network: { template: TEMPLATE("dashboard-network"), scrollable: [""] },
@@ -225,6 +233,8 @@ export class OptimalFoundryDashboard extends LiveApplication {
   #cleanup = { report: null, selected: new Set(), progress: null, last: null };
   /** Review mode: the originals checked in the "waiting for you" list, kept across refreshes. */
   #review = new Set();
+  /** Preloading tab: what each "add" select shows, kept across re-renders (a refresh would reset it to the first option). */
+  #picks = { scene: "", include: "", exclude: "" };
 
   /** Open (or focus) the single dashboard window. */
   static open() {
@@ -246,20 +256,25 @@ export class OptimalFoundryDashboard extends LiveApplication {
     await super._onFirstRender(context, options);
     const watched = new Set(["nextScenes", "preloadInclude", "preloadExclude", "cdnStatus", "library",
       "mediaEnabled", "backfillMode", "backfillPaused", "welcomeDone", "reviewApproved"]);
-    this._onHook(`${MODULE_ID}.settingChanged`, key => { if (watched.has(key)) this._refresh(true); });
+    // Hook-driven refreshes wait while the GM is choosing in a select or typing, then run once.
+    this._onHook(`${MODULE_ID}.settingChanged`, key => { if (watched.has(key)) this._refreshWhenIdle(true); });
     for (const hook of ["createScene", "deleteScene", "createFolder", "deleteFolder", "createPlaylist", "deletePlaylist"]) {
-      this._onHook(hook, () => { if (this.tabGroups.main === "preload") this._refresh(true); });
+      this._onHook(hook, () => { if (this.tabGroups.main === "preload") this._refreshWhenIdle(true); });
     }
-    // The automatic plan changes with the world; not while the GM is typing in the include/exclude editors.
-    this._onHook(`${MODULE_ID}.preloadPlanChanged`, () => {
-      if ((this.tabGroups.main === "preload") && !this._isEditing()) this._refresh(true);
-    });
+    // The automatic plan changes with the world.
+    this._onHook(`${MODULE_ID}.preloadPlanChanged`, () => { if (this.tabGroups.main === "preload") this._refreshWhenIdle(true); });
   }
 
   /** @override */
   _attachPartListeners(partId, htmlElement, options) {
     super._attachPartListeners(partId, htmlElement, options);
     if (partId === "cleanup") return this.#attachCleanupListeners(htmlElement);
+    if (partId === "preload") {
+      for (const select of htmlElement.querySelectorAll("select[data-of-pick]")) {
+        select.addEventListener("change", event => { this.#picks[event.currentTarget.dataset.ofPick] = event.currentTarget.value; });
+      }
+      return;
+    }
     if (partId !== "media") return;
     for (const box of htmlElement.querySelectorAll("input[data-of-review-pick]")) {
       box.addEventListener("change", event => {
@@ -302,15 +317,22 @@ export class OptimalFoundryDashboard extends LiveApplication {
     const context = await super._prepareContext(options);
     const parts = new Set(options.parts ?? Object.keys(this.constructor.PARTS));
     const a = api();
-    const [backfill, net, preload, sw, swarm, caps] = await Promise.all([
+    const coordinator = isCoordinator();
+    const [backfill, net, preload, sw, swarm, eff, overview, caps] = await Promise.all([
       call("backfillStatus", a.backfill?.backfillStatus),
       call("networkStatus", a.networkStatus),
       call("preloadStatus", a.preloadStatus),
       call("swStatus", a.swStatus),
       call("swarmStatus", a.swarmStatus),
+      call("effectiveNetwork", a.effectiveNetwork),
+      coordinator ? call("swarmOverview", swarmOverview) : null,
       parts.has("media") ? Promise.all(KINDS.map(k => call(`canConvert.${k}`, a.canConvert, k))) : null
     ]);
-    const raw = { a, backfill, net, preload, sw, swarm, caps };
+    // After the probes: a conversion worker that cannot start is only known once one of them ran.
+    const blocker = parts.has("media") ? await call("conversionBlocker", conversionBlocker) : null;
+    // Sharing as the coordinator sees it: the GM on the server machine is never in the swarm, the players are.
+    const sharing = coordinator ? describeSharing(eff, overview, net?.clients) : null;
+    const raw = { a, backfill, net, preload, sw, swarm, eff, sharing, blocker, caps };
     Object.assign(context, {
       apiReady: !!game.modules.get(MODULE_ID)?.api,
       header: this.#headerContext(raw)
@@ -330,10 +352,11 @@ export class OptimalFoundryDashboard extends LiveApplication {
     return partContext;
   }
 
-  #headerContext({ backfill, net, sw, swarm }) {
+  #headerContext({ backfill, net, sw, swarm, sharing }) {
     const phase = backfill?.phase ?? "idle";
     const peers = Array.isArray(swarm?.peers) ? swarm.peers.filter(p => p?.state === "open").length : 0;
     return {
+      setup: describeSetup(sw),
       media: {
         label: backfill
           ? (backfill.paused ? L("Dashboard.Media.Paused") : maybeL(`Dashboard.Phase.${phase}`, phase))
@@ -345,9 +368,11 @@ export class OptimalFoundryDashboard extends LiveApplication {
         cdn: net ? (net.cdn ? L("Dashboard.Network.CdnOn") : L("Dashboard.Network.CdnOff")) : "",
         cls: net ? "ok" : "off"
       },
-      p2p: {
-        label: swarm?.enabled ? L("Dashboard.P2P.PeersCount", { count: peers }) : L("Dashboard.Common.Off"),
-        cls: swarm?.enabled ? (peers ? "ok" : "idle") : "off"
+      // A passive GM session only knows its own browser.
+      p2p: sharing ? { label: sharing.label, cls: sharing.cls, tip: sharing.reason || L("Dashboard.Tabs.p2p") } : {
+        label: swarm?.enabled ? L("Dashboard.P2P.PeersCount", { count: peers }) : L("Sharing.Off"),
+        cls: swarm?.enabled ? (peers ? "ok" : "idle") : "off",
+        tip: L("Dashboard.Tabs.p2p")
       },
       sw: {
         label: sw?.controlling ? L("Dashboard.P2P.SwActive") : L("Dashboard.P2P.SwInactive"),
@@ -356,7 +381,7 @@ export class OptimalFoundryDashboard extends LiveApplication {
     };
   }
 
-  async #mediaContext({ a, backfill, caps }) {
+  async #mediaContext({ a, backfill, blocker, caps }) {
     const stats = (await call("libraryStats", a.libraryStats)) ?? {};
     const library = (await call("getLibrary", a.getLibrary)) ?? {};
     const coordinator = isCoordinator();
@@ -385,9 +410,13 @@ export class OptimalFoundryDashboard extends LiveApplication {
     const rowActions = canAct && !busy.has("undo") && !busy.has("retry") && !busy.has("cleanup");
     const entries = filtered.slice(0, LIST_LIMIT).map(e => this.#entryRow(e, rowActions, mediaOn, mode));
 
+    const heavy = num(backfill?.waitingForPlayers);
     return {
       available: !!a.backfill && mediaOn,
       isCoordinator: coordinator,
+      // One reason for everything this browser cannot convert (a page without HTTPS, or a browser without the encoders).
+      blocker: blockerNote(blocker),
+      heavy: heavy ? { text: L("Dashboard.Media.HeavyWaiting", { count: fmtCount(heavy) }), canRun: canAct } : null,
       scan: scanContext(setting("scanReport", {})),
       mode: !mediaOn ? null : { label: choiceLabel("backfillMode", mode), hint: L(`Dashboard.Media.Mode.${mode}`),
         icon: MODE_ICONS[mode] ?? "fa-solid fa-circle-question", cls: mode === "off" ? "idle" : (mode === "auto" ? "ok" : "busy") },
@@ -430,7 +459,7 @@ export class OptimalFoundryDashboard extends LiveApplication {
         undoBusy: busy.has("undo"),
         retryBusy: busy.has("retry")
       },
-      caps: caps ? KINDS.map((k, i) => ({ label: kindLabel(k), ok: caps[i] === true, unknown: caps[i] === undefined })) : [],
+      caps: (caps && !blocker) ? KINDS.map((k, i) => ({ label: kindLabel(k), ok: caps[i] === true, unknown: caps[i] === undefined })) : [],
       filters: FILTERS.map(f => ({ value: f, label: L(`Dashboard.Media.Filter.${f}`), selected: f === this.#filter })),
       entries,
       totalFiltered: filtered.length,
@@ -499,12 +528,12 @@ export class OptimalFoundryDashboard extends LiveApplication {
     };
   }
 
-  async #networkContext({ a, net, preload }) {
-    const eff = (await call("effectiveNetwork", a.effectiveNetwork)) ?? null;
+  async #networkContext({ net, preload, eff, sharing }) {
     const cdnStatus = setting("cdnStatus", {}) ?? {};
     const readiness = upcomingReadiness();
+    const sharingOn = !!eff?.p2p;
+    const budget = net?.budget;
     const clients = Object.entries(net?.clients ?? {}).map(([userId, c]) => {
-      const p2p = c?.p2p;
       const r = readiness[userId];
       const pos = c?.queuePosition;
       return {
@@ -518,7 +547,7 @@ export class OptimalFoundryDashboard extends LiveApplication {
         nextReady: r?.total ? `${fmtCount(r.have)} / ${fmtCount(r.total)}${r.bytesLeft > 0 ? ` · ${fmtBytes(r.bytesLeft)}` : ""}` : "—",
         nextDone: !!r?.total && r.have >= r.total,
         preload: c?.preload ? `${fmtCount(num(c.preload.done))} / ${fmtCount(num(c.preload.total))}` : "—",
-        p2p: p2p ? L("Dashboard.Network.P2PCell", { up: fmtBytes(num(p2p.up)), down: fmtBytes(num(p2p.down)), peers: num(p2p.peers) }) : "—"
+        health: describeHealth(c, sharingOn)
       };
     }).sort((x, y) => x.name.localeCompare(y.name, game.i18n.lang));
     const detected = !!(net?.cdn ?? cdnStatus.cdn);
@@ -541,10 +570,19 @@ export class OptimalFoundryDashboard extends LiveApplication {
         hostUpload: fmtRate(eff.hostUploadBytesPerSec),
         preloadRate: fmtRate(eff.preloadBytesPerSec),
         staggerJoin: yesNo(eff.staggerJoin),
-        p2p: yesNo(eff.p2p),
+        p2p: sharing ? sharing.label : yesNo(eff.p2p),
+        p2pReason: sharing?.reason ?? "",
         idle: Number.isFinite(eff.idleMs) ? `${Math.round(eff.idleMs / 1000)} s` : "—",
         maxFile: fmtBytes(eff.preloadMaxBytes)
       } : null,
+      // The coordinator slows the preload budget down while the connection answers slowly.
+      budget: budget ? {
+        slowed: !!budget.slowed,
+        rate: fmtRate(budget.rateBytesPerSec),
+        note: budget.slowed ? L("Dashboard.Network.BudgetSlowed", { rate: fmtRate(budget.rateBytesPerSec),
+          ceiling: fmtRate(budget.ceilingBytesPerSec), rtt: Number.isFinite(budget.rttMs) ? fmtCount(Math.round(budget.rttMs)) : "—" }) : ""
+      } : null,
+      sharingOn,
       self: net ? {
         inflight: fmtCount(num(net.inflight)),
         rate: fmtRate(net.bytesPerSec),
@@ -568,23 +606,24 @@ export class OptimalFoundryDashboard extends LiveApplication {
     };
   }
 
-  #p2pContext({ sw, swarm }) {
+  #p2pContext({ sw, swarm, sharing }) {
     const peers = (Array.isArray(swarm?.peers) ? swarm.peers : []).map(p => ({
       name: game.users.get(p?.userId)?.name ?? p?.userId ?? "—",
-      state: codeLabel(p?.state, ["Dashboard.P2P.State", "P2P.PeerState"]) || "—",
+      state: codeLabel(p?.state, ["P2P.PeerState"]) || "—",
       connected: p?.state === "open",
       rtt: Number.isFinite(p?.rttMs) ? `${Math.round(p.rttMs)} ms` : "—",
       up: fmtBytes(num(p?.upBytes)),
       down: fmtBytes(num(p?.downBytes))
     }));
     return {
-      secure: !!window.isSecureContext,
+      blocker: window.isSecureContext ? "" : L("Blocker.insecure"),
+      overview: sharing,
       sw: describeSw(sw),
       swarm: describeSwarm(swarm),
       peers,
       hasPeers: peers.length > 0,
       participate: yesNo(setting("p2pParticipate", true)),
-      uploadCap: `${setting("p2pUploadCapMBps", 0)} MB/s`
+      uploadCap: `${fmtCount(setting("p2pUploadCapMbps", 0))} Mbps`
     };
   }
 
@@ -596,9 +635,10 @@ export class OptimalFoundryDashboard extends LiveApplication {
       const scene = game.scenes?.get(id);
       return { id, name: scene?.name ?? id, missing: !scene };
     });
+    const picks = this.#picks;
     const sceneChoices = scenes
       .filter(s => !nextSet.has(s.id))
-      .map(s => ({ id: s.id, name: s.name }))
+      .map(s => ({ id: s.id, name: s.name, selected: s.id === picks.scene }))
       .sort((x, y) => x.name.localeCompare(y.name, game.i18n.lang));
 
     const include = setting("preloadInclude", []);
@@ -614,6 +654,8 @@ export class OptimalFoundryDashboard extends LiveApplication {
       { label: L("Dashboard.Preload.PlaylistFolders"), options: folders("Playlist").filter(o => !o.used) },
       { label: L("Dashboard.Preload.Playlists"), options: playlists.filter(o => !o.used) }
     ].filter(g => g.options.length);
+    /** The same choices for each of the two lists, with that list's own pick selected. */
+    const picked = pick => groups.map(g => ({ label: g.label, options: g.options.map(o => ({ ...o, selected: o.uuid === pick })) }));
 
     const p = preloadPlan();
     const tierLabel = tier => L(`Dashboard.Preload.Tier.${tier}`);
@@ -641,7 +683,8 @@ export class OptimalFoundryDashboard extends LiveApplication {
       hasSceneChoices: sceneChoices.length > 0,
       include: include.map(describeRule),
       exclude: exclude.map(describeRule),
-      groups,
+      includeGroups: picked(picks.include),
+      excludeGroups: picked(picks.exclude),
       hasGroups: groups.length > 0,
       enabled: setting("preloadEnabled", true)
     };
@@ -659,7 +702,8 @@ export class OptimalFoundryDashboard extends LiveApplication {
       report.inUse ? L("Cleanup.InUse", { count: report.inUse }) : "",
       report.outsideWorld ? L("Cleanup.OutsideWorld", { count: report.outsideWorld }) : "",
       report.brokenCopy ? L("Cleanup.BrokenCopy", { count: report.brokenCopy }) : "",
-      report.gone ? L("Cleanup.Gone", { count: report.gone }) : ""
+      report.gone ? L("Cleanup.Gone", { count: report.gone }) : "",
+      report.missing ? L("Cleanup.Missing", { count: report.missing }) : ""
     ].filter(Boolean).join(" · ") : "";
     return {
       isCoordinator: coordinator,
@@ -712,7 +756,10 @@ export class OptimalFoundryDashboard extends LiveApplication {
     const size = fmtBytes(items.reduce((s, c) => s + num(c.originalBytes), 0));
     const ok = await DialogV2.confirm({
       window: { title: "OPTIMALFOUNDRY.Cleanup.ConfirmTitle", icon: "fa-solid fa-broom" },
-      content: `<p>${L("Cleanup.Confirm", { count: items.length, size })}</p>`,
+      // Said in the dialog itself, not behind a hover: what is not checked, and that there is no way back.
+      content: `<p>${L("Cleanup.Confirm", { count: items.length, size })}</p>
+        <p><strong>${L("Cleanup.ConfirmOtherWorlds")}</strong></p>
+        <p><strong>${L("Cleanup.ConfirmNoUndo")}</strong></p>`,
       yes: { label: "OPTIMALFOUNDRY.Cleanup.ConfirmYes", icon: "fa-solid fa-trash-can" },
       no: { default: true },
       rejectClose: false
@@ -725,7 +772,8 @@ export class OptimalFoundryDashboard extends LiveApplication {
           onProgress: (done, total) => { this.#cleanup.progress = { done, total }; this._refresh(false); }
         });
         const gone = new Set(r.emptied);
-        for (const k of r.kept) if (["gone", "notEligible"].includes(k.reason)) gone.add(k.original);
+        // Kept for good (already empty, vanished, or no longer eligible): they leave the list of candidates too.
+        for (const k of r.kept) if (["gone", "missing", "notEligible"].includes(k.reason)) gone.add(k.original);
         const report = this.#cleanup.report;
         if (report) report.candidates = report.candidates.filter(c => !gone.has(c.original));
         for (const k of gone) this.#cleanup.selected.delete(k);
@@ -885,6 +933,11 @@ export class OptimalFoundryDashboard extends LiveApplication {
       rejectClose: false
     });
     if (ok) await this.#retry("retry", originals);
+  }
+
+  static async #onRecheck(_event, target) {
+    await recheckSetup(target);
+    this._refresh(true);
   }
 
   static async #onDetectCdn() {

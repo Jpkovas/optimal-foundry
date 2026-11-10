@@ -1,0 +1,23 @@
+# Runs the unit and static tests on every push and pull request. No install step: they need only Node.
+# (Tests that read Foundry's own source skip themselves when the Foundry app is not installed.)
+name: CI
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: lts/*
+
+      - name: Run the tests
+        run: node --test "test/*.test.mjs"

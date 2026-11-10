@@ -14,8 +14,15 @@ let seq = 0;
 /** This browser session. Request ids carry it so two sessions of one user never share an id. */
 const session = { sid: Math.random().toString(36).slice(2, 12), startedAt: Date.now() };
 
+/**
+ * The server announced that the world is closing. From then on it has no user list, and a message addressed to
+ * specific users makes it throw in its log; the page is about to leave anyway, so nothing more is sent.
+ */
+let closing = false;
+
 export function initSocket() {
   game.socket.on(SOCKET, onMessage);
+  game.socket.on("shutdown", () => { closing = true; });
   initSessionLock();
 }
 
@@ -47,6 +54,7 @@ function onMessage(msg, senderId) {
 }
 
 function send(envelope) {
+  if (closing) return;
   const msg = { ...envelope, from: game.user.id };
   // Never pass an undefined options argument: socket.io sends it as null, and the server's
   // `{recipients} = {}` destructuring throws on null, silently dropping every broadcast.
@@ -139,24 +147,26 @@ function initSessionLock() {
   });
   beat();
   setInterval(() => { beat(); recheck(); }, BEAT_MS);
-  window.addEventListener("pagehide", () => emit(MSG.COORD_BEAT, { sid: session.sid, bye: true }, game.user.id));
+  // A plain broadcast, not addressed to this user: when the world is shutting down the server has no user list
+  // any more and a targeted emit throws in its log. The handler above already ignores every other sender.
+  window.addEventListener("pagehide", () => emit(MSG.COORD_BEAT, { sid: session.sid, bye: true }));
 }
 
 /** Message types used across subsystems, kept in one place so producers and consumers agree. */
 export const MSG = {
   // core
-  COORD_BEAT: "core.coordBeat",              // GM session -> own user {sid, startedAt} | {sid, bye: true}: same-user session lock
+  COORD_BEAT: "core.coordBeat",              // GM session -> own user {sid, startedAt}; -> all {sid, bye: true} on pagehide: same-user session lock
   // media
   CONVERT_REQUEST: "media.convertRequest",   // client -> GM {path}: please optimize this uploaded original
   REGISTER_OPTIMIZED: "media.registerOptimized", // client -> GM {original, optimized, kind, sha256, bytes, originalBytes}: a client-side converted upload
   // network / preload
-  CLIENT_STATUS: "net.status",               // client -> GM {inflight, bytesPerSec, sceneReady, idle, cacheBytes}
+  CLIENT_STATUS: "net.status",               // client -> GM (request) {inflight, urgent, bytesPerSec, sceneReady, idle, cacheBytes, joining, local, publicOrigin, secure, cache, p2p, rttMs, preload} -> true: the round trip is the client's next rttMs
   PRELOAD_NEXT: "net.preloadNext",           // client -> GM (request) {have: string[], full?: boolean} -> {items: [], waitMs}: up to 8 items, already charged to the budget
-  PRELOAD_DONE: "net.preloadDone",           // client -> GM {results: [{src, bytes, est, ok, aborted}]}: aborted items are refunded and not added to `have`
+  PRELOAD_DONE: "net.preloadDone",           // client -> GM {results: [{src, bytes, ok, aborted, reason}]}: bytes = what the host uploaded; settled against what the GM charged
   PRELOAD_WAKE: "net.preloadWake",           // GM -> all {}: the preload queue changed, ask again now
   JOIN_TURN: "net.joinTurn",                 // GM -> client {}: you may start loading/preloading now
   // p2p
-  P2P_HAVE: "p2p.have",                      // client -> GM {add: string[], drop: string[]}
+  P2P_HAVE: "p2p.have",                      // client -> GM {add: string[], drop: string[], reset?} | {off: true} (left the swarm)
   P2P_WANT: "p2p.want",                      // client -> GM (request) {url} -> {peers: userId[], sha256, bytes}
   P2P_SIGNAL: "p2p.signal",                  // peer -> peer {sdp?|candidate?, session}
   P2P_STATS: "p2p.stats",                    // client -> GM {up, down, peers}

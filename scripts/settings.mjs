@@ -6,6 +6,10 @@ import { MODULE_ID } from "./constants.mjs";
  * client settings in "My connection", and the rest is internal state or edited from the dashboard.
  * Labels live in lang/*.json under OPTIMALFOUNDRY.Settings.<key>.Name / .Hint.
  */
+
+/** Data saver on, or a cellular link: this browser starts with the lighter per-device defaults. */
+const CONSTRAINED = !!globalThis.navigator?.connection?.saveData || globalThis.navigator?.connection?.type === "cellular";
+
 const DEFS = {
   // ---------- Media ----------
   mediaEnabled:        { scope: "world", type: Boolean, default: true, config: false, group: "media" },
@@ -35,8 +39,8 @@ const DEFS = {
   idleSeconds:         { scope: "world", type: Number,  default: 5, config: false, group: "network", range: { min: 1, max: 60, step: 1 } },
   preloadMaxFileMB:    { scope: "world", type: Number,  default: 100, config: false, group: "network", range: { min: 1, max: 2000, step: 1 } },
   predecodeNext:       { scope: "world", type: Boolean, default: false, config: false, group: "network" },
-  // client (per player, per browser); starts off when the browser's data saver is on
-  preloadOnThisDevice: { scope: "client", type: Boolean, default: !globalThis.navigator?.connection?.saveData, config: false, group: "network" },
+  // client (per player, per browser): "all" preloads the whole queue, "session" stops before the "later" tier, "off" nothing
+  preloadScope:        { scope: "client", type: String,  default: CONSTRAINED ? "session" : "all", config: false, group: "network", choices: { all: "all", session: "session", off: "off" } },
   preloadInclude:      { scope: "world", type: Array,   default: [], config: false }, // folder / playlist UUIDs always preloaded
   preloadExclude:      { scope: "world", type: Array,   default: [], config: false }, // folder / playlist UUIDs never preloaded
 
@@ -47,8 +51,9 @@ const DEFS = {
   p2pMinFileKB:        { scope: "world", type: Number,  default: 512, config: false, group: "p2p", range: { min: 0, max: 102400, step: 64 } },
   p2pTimeoutSec:       { scope: "world", type: Number,  default: 8, config: false, group: "p2p", range: { min: 2, max: 60, step: 1 } },
   // client (per player, per browser)
-  p2pParticipate:      { scope: "client", type: Boolean, default: true, config: false, group: "p2p" },
-  p2pUploadCapMBps:    { scope: "client", type: Number,  default: 2, config: false, group: "p2p", range: { min: 0.25, max: 50, step: 0.25 } },
+  p2pParticipate:      { scope: "client", type: Boolean, default: !CONSTRAINED, config: false, group: "p2p" },
+  /** Megabits per second, like every other rate the module shows. */
+  p2pUploadCapMbps:    { scope: "client", type: Number,  default: 4, config: false, group: "p2p", range: { min: 1, max: 200, step: 1 } },
   cacheQuotaMB:        { scope: "client", type: Number,  default: 4096, config: false, group: "p2p", range: { min: 256, max: 65536, step: 256 } },
 
   // ---------- Internal state ----------
@@ -64,6 +69,11 @@ const DEFS = {
   reviewApproved:      { scope: "world", type: Array,   default: [], config: false },
   /** A GM finished (or skipped for good) the welcome screen; nothing converts existing files before that. */
   welcomeDone:         { scope: "world", type: Boolean, default: false, config: false },
+  /**
+   * This player answered the first-run card of "My connection" on this browser. Until then a player's browser
+   * opens no peer connection, so no IP address is exchanged before the player chose.
+   */
+  connectionChoiceDone: { scope: "client", type: Boolean, default: false, config: false },
   /** GM tracker panel (per browser): shown, collapsed, and where it was left ({left, top}). */
   trackerVisible:      { scope: "client", type: Boolean, default: true, config: false },
   trackerCollapsed:    { scope: "client", type: Boolean, default: false, config: false },
@@ -128,15 +138,22 @@ export const getSetting = key => game.settings.get(MODULE_ID, key);
 export const setSetting = (key, value) => game.settings.set(MODULE_ID, key, value);
 export const SETTING_GROUPS = Object.fromEntries(Object.entries(DEFS).map(([k, d]) => [k, d.group ?? "internal"]));
 
-/** Fixed limits per network profile; `custom` and the bandwidth come from the settings. P2P is its own setting. */
+/**
+ * Fixed limits per network profile; `custom` and the bandwidth come from the settings. P2P is its own setting.
+ * Behind a caching CDN only the first request for a file reaches the host (the edge fill) and what players load
+ * for the game mostly comes from the edge, so that fill may use most of the uplink; the edge has no request limit.
+ */
 const PROFILES = {
-  quickTunnel: { maxConcurrentRequests: 150, preloadSharePct: 60, staggerJoin: true, bandwidthLimited: true },
-  cdn:         { maxConcurrentRequests: Infinity, preloadSharePct: 90, staggerJoin: false, bandwidthLimited: false }
+  quickTunnel: { maxConcurrentRequests: 150, preloadSharePct: 60, staggerJoin: true },
+  cdn:         { maxConcurrentRequests: Infinity, preloadSharePct: 90, staggerJoin: false }
 };
 
 /**
  * The limits actually in force. `auto` picks `cdn` when the CDN detector confirmed a caching CDN,
- * otherwise `quickTunnel`. P2P stays on behind a CDN: it still saves the host upload on edge misses.
+ * otherwise `quickTunnel`. Behind a CDN players never exchange files: the edge already spares the host's upload,
+ * so P2P would only spend the players' upload and exchange their IP addresses.
+ * `preloadBytesPerSec` is the ceiling of the preload budget on every profile (the network manager adapts below it):
+ * everything the host uploads for preloading, which behind a CDN is the first handout of each file.
  */
 export function effectiveNetwork() {
   const chosen = getSetting("networkProfile");
@@ -145,16 +162,15 @@ export function effectiveNetwork() {
   const custom = {
     maxConcurrentRequests: getSetting("maxConcurrentRequests"),
     preloadSharePct: getSetting("preloadSharePct"),
-    staggerJoin: getSetting("staggerJoin"),
-    bandwidthLimited: true
+    staggerJoin: getSetting("staggerJoin")
   };
   const limits = profile === "custom" ? custom : PROFILES[profile];
   const uploadBytesPerSec = getSetting("hostUploadMbps") * 125_000;
   return {
     profile, cdn, ...limits,
-    p2p: getSetting("p2pEnabled"),
+    p2p: getSetting("p2pEnabled") && profile !== "cdn",
     hostUploadBytesPerSec: uploadBytesPerSec,
-    preloadBytesPerSec: limits.bandwidthLimited ? uploadBytesPerSec * limits.preloadSharePct / 100 : Infinity,
+    preloadBytesPerSec: uploadBytesPerSec * limits.preloadSharePct / 100,
     idleMs: getSetting("idleSeconds") * 1000,
     preloadMaxBytes: getSetting("preloadMaxFileMB") * 1_048_576
   };

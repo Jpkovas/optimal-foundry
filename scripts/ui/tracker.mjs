@@ -2,7 +2,13 @@ import { MODULE_ID } from "../constants.mjs";
 import { setSetting } from "../settings.mjs";
 import { isCoordinator } from "../socket.mjs";
 import { upcomingReadiness, preloadPlan } from "../net/preload.mjs";
-import { TEMPLATE, L, api, call, setting, num, fmtBytes, fmtRate, fmtCount, basename, LiveApplication } from "./common.mjs";
+import { networkStatus } from "../net/scheduler.mjs";
+import { swarmOverview } from "../p2p/swarm.mjs";
+import {
+  TEMPLATE, L, api, call, warnOnce, setting, num, fmtBytes, fmtRate, fmtCount, basename, describeSetup, describeSharing,
+  describeHealth, convertHeavyNow, LiveApplication
+} from "./common.mjs";
+import { upcomingScene, readyCue } from "./format.mjs";
 
 /**
  * The GM's floating status panel: a small frameless box over the canvas, dragged by its title bar, collapsed to one
@@ -12,6 +18,7 @@ import { TEMPLATE, L, api, call, setting, num, fmtBytes, fmtRate, fmtCount, base
 
 const DEFAULT_POSITION = { left: 120, top: 120 };
 const WIDTH = 290;
+const READY_WATCH_MS = 3000;
 
 export class OptimalFoundryTracker extends LiveApplication {
   static DEFAULT_OPTIONS = {
@@ -24,7 +31,8 @@ export class OptimalFoundryTracker extends LiveApplication {
       collapse: OptimalFoundryTracker.#onCollapse,
       hide: OptimalFoundryTracker.#onHide,
       dashboard: OptimalFoundryTracker.#onDashboard,
-      welcome: OptimalFoundryTracker.#onWelcome
+      welcome: OptimalFoundryTracker.#onWelcome,
+      runHeavy: () => convertHeavyNow()
     }
   };
 
@@ -51,7 +59,7 @@ export class OptimalFoundryTracker extends LiveApplication {
     await super._onFirstRender(context, options);
     this.element.addEventListener("pointerdown", event => this.#startDrag(event));
     const watched = new Set(["trackerCollapsed", "backfillMode", "welcomeDone", "mediaEnabled", "preloadEnabled", "p2pEnabled"]);
-    this._onHook(`${MODULE_ID}.settingChanged`, key => { if (watched.has(key)) this._refresh(true); });
+    this._onHook(`${MODULE_ID}.settingChanged`, key => { if (watched.has(key)) this._refreshWhenIdle(true); });
   }
 
   /** Collapsed it shrinks to its one line; the height follows the content. Both stay inside the screen. @override */
@@ -80,31 +88,40 @@ export class OptimalFoundryTracker extends LiveApplication {
   async _prepareContext(options) {
     const context = await super._prepareContext(options);
     const a = api();
-    const [backfill, net, swarm, stats] = await Promise.all([
+    const coordinator = isCoordinator();
+    const [backfill, net, stats, sw, eff, overview] = await Promise.all([
       call("backfillStatus", a.backfill?.backfillStatus),
       call("networkStatus", a.networkStatus),
-      call("swarmStatus", a.swarmStatus),
-      call("libraryStats", a.libraryStats)
+      call("libraryStats", a.libraryStats),
+      call("swStatus", a.swStatus),
+      call("effectiveNetwork", a.effectiveNetwork),
+      coordinator ? call("swarmOverview", swarmOverview) : null
     ]);
-    const coordinator = isCoordinator();
     const media = mediaLine(backfill, stats ?? {});
     const plan = coordinator ? preloadPlan() : null;
     const tier = t => num(plan?.tiers?.find(x => x.tier === t)?.files);
-    const players = playerRows(net, tier(0) + tier(1));
+    const players = playerRows(net, tier(0) + tier(1), !!eff?.p2p);
     const ready = players.filter(p => p.ready).length;
-    const peers = (Array.isArray(swarm?.peers) ? swarm.peers : []).filter(p => p?.state === "open").length;
+    const next = upcomingScene(plan?.plan);
+    // The GM on the server machine is never in the swarm, so the line comes from what the players report.
+    const sharing = coordinator ? describeSharing(eff, overview, net?.clients) : null;
+    if (sharing) {
+      sharing.tip = [`${L("Sharing.Title")}: ${sharing.label}`, sharing.on ? `↑ ${sharing.up} · ↓ ${sharing.down}` : "", sharing.reason]
+        .filter(Boolean).join(" · ");
+    }
     return Object.assign(context, {
       collapsed: !!setting("trackerCollapsed", false),
       coordinator,
+      setup: !!describeSetup(sw),
       media,
       players,
       // Players are known to the coordinating session only.
       playersNote: !coordinator ? L("Tracker.PlayersOtherGM") : (!players.length ? L("Tracker.NoPlayers") : ""),
       preloadOn: !!setting("preloadEnabled", true),
       readyTip: players.length ? L("Tracker.ReadyCount", { ready, total: players.length }) : "",
-      peers: swarm?.enabled ? peers : null,
+      allReady: (next && players.length && (ready === players.length)) ? L("Tracker.AllReady", { scene: next.name }) : "",
       plan: plan?.built ? { now: fmtCount(tier(0)), likely: fmtCount(tier(1)), later: fmtCount(tier(2) + tier(3)) } : null,
-      p2p: swarm?.enabled ? { peers, up: fmtBytes(num(swarm.up)), down: fmtBytes(num(swarm.down)) } : null
+      sharing
     });
   }
 
@@ -151,6 +168,10 @@ function mediaLine(b, stats) {
       action: "dashboard", actionLabel: L("Tracker.Review"), short: fmtCount(num(b.review)) };
   }
   if (b.paused) return { icon: "fa-solid fa-pause", cls: "idle", text: L("Tracker.Media.Paused", { queued: fmtCount(num(b.queued)) }) };
+  if (num(b.waitingForPlayers)) {
+    return { icon: "fa-solid fa-user-clock", cls: "idle", text: L("Tracker.Media.HeavyWaiting", { count: fmtCount(num(b.waitingForPlayers)) }),
+      action: "runHeavy", actionLabel: L("Tracker.ConvertNow"), short: fmtCount(num(b.waitingForPlayers)) };
+  }
   if (b.running && num(b.queued)) {
     return { icon: "fa-solid fa-hourglass-half", cls: "busy", text: L("Tracker.Media.Waiting", { queued: fmtCount(num(b.queued)) }),
       short: fmtCount(num(b.queued)) };
@@ -160,11 +181,12 @@ function mediaLine(b, stats) {
 }
 
 /**
- * One row per connected player: readiness for what comes next (tiers 0–1), overall preload, transfer rate.
+ * One row per connected player: readiness for what comes next (tiers 0–1), overall preload, transfer rate, and
+ * what that browser can do (HTTPS, local cache, sharing) in the tooltip.
  * `upcoming` is the number of tier 0–1 files: a player the coordinator has no readiness for yet (preloading off on
  * that device, not asked yet) is "unknown", never "ready", unless there is nothing upcoming at all.
  */
-function playerRows(net, upcoming) {
+function playerRows(net, upcoming, sharingOn) {
   const readiness = upcomingReadiness();
   return Object.entries(net?.clients ?? {})
     .filter(([userId]) => !game.users.get(userId)?.isGM)
@@ -190,7 +212,8 @@ function playerRows(net, upcoming) {
           stateText,
           known ? L("Tracker.NextTip", { next: total ? `${fmtCount(have)}/${fmtCount(total)}` : "—", left: fmtBytes(num(r?.bytesLeft)) }) : "",
           num(c?.bytesPerSec) > 0 ? fmtRate(c.bytesPerSec) : "",
-          c?.preload ? L("Tracker.PreloadTip", { done: fmtCount(num(c.preload.done)), total: fmtCount(num(c.preload.total)) }) : ""
+          c?.preload ? L("Tracker.PreloadTip", { done: fmtCount(num(c.preload.done)), total: fmtCount(num(c.preload.total)) }) : "",
+          describeHealth(c, sharingOn).tip
         ].filter(Boolean).join(" · ")
       };
     })
@@ -208,7 +231,30 @@ export async function setTrackerVisible(visible) {
   if (tool && (tool.active !== visible)) ui.controls.render({ reset: true });
 }
 
-/** Registered at init: the Tokens control toggle; at ready the panel opens for GMs who left it shown. */
+/** Scenes the "everyone is ready" cue already announced in this session. */
+const announced = new Set();
+
+/**
+ * Coordinator: one notice per scene when every connected player holds everything that comes next. It runs on its
+ * own timer, so the GM gets it with the panel collapsed or hidden too.
+ */
+function watchReadiness() {
+  if (!isCoordinator()) return;
+  try {
+    const plan = preloadPlan();
+    if (!plan?.built) return;
+    const upcoming = plan.tiers.reduce((n, t) => n + (t.tier <= 1 ? t.files : 0), 0);
+    const scene = readyCue(playerRows(networkStatus(), upcoming, false), upcomingScene(plan.plan), announced);
+    if (scene) ui.notifications.info(L("Tracker.AllReadyNotice", { scene: scene.name }));
+  } catch (err) {
+    warnOnce("ready cue", err);
+  }
+}
+
+/**
+ * Registered at init: the Tokens control toggle; at ready the panel opens for GMs who left it shown and the
+ * "everyone is ready" watch starts.
+ */
 export function registerTracker() {
   Hooks.on("getSceneControlButtons", controls => {
     const tokens = controls.tokens;
@@ -224,6 +270,8 @@ export function registerTracker() {
     };
   });
   Hooks.once("ready", () => {
-    if (game.user.isGM && setting("trackerVisible", true)) new OptimalFoundryTracker().render({ force: true });
+    if (!game.user.isGM) return;
+    if (setting("trackerVisible", true)) new OptimalFoundryTracker().render({ force: true });
+    setInterval(watchReadiness, READY_WATCH_MS);
   });
 }

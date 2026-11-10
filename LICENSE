@@ -22,3 +22,4 @@ SOFTWARE.
 
 vendor/mediabunny.min.mjs is Mediabunny, licensed under the Mozilla Public
 License 2.0 (see vendor/mediabunny.LICENSE).
+It is Mediabunny 1.65.2 (the npm package mediabunny@1.65.2), unmodified; its source is at https://github.com/Vanilagy/mediabunny.

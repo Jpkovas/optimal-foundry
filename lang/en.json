@@ -126,21 +126,9 @@
         "Name": "Prepare the next scene in memory",
         "Hint": "Besides downloading, keeps the predicted next scene's images (the marked one; without a mark, its neighbour in the navigation bar or folder) ready in memory so the switch is instant. Uses more memory; only on computers with Medium performance or higher."
       },
-      "preloadOnThisDevice": {
-        "Name": "Download upcoming scenes on this device",
-        "Hint": "Turn off on a slow or metered connection (a phone, for example). Starts off when the browser's data saver is on."
-      },
-      "preloadInclude": {
-        "Name": "Always preload",
-        "Hint": "Folders and playlists always included in preloading. Edit from the Optimal Foundry dashboard."
-      },
-      "preloadExclude": {
-        "Name": "Never preload",
-        "Hint": "Folders and playlists excluded from preloading. Edit from the Optimal Foundry dashboard."
-      },
       "p2pEnabled": {
         "Name": "Players share files with each other",
-        "Hint": "Whoever already has a file sends it straight to the other players, sparing your connection. Needs HTTPS. With direct connections, players in the world can see each other's IP address."
+        "Hint": "Whoever already has a file sends it straight to the other players, sparing your connection. Needs HTTPS and the local cache; behind a CDN it is not used. Players who share see each other's IP address, and each one chooses whether to take part."
       },
       "serviceWorker": {
         "Name": "Keep files in the browser",
@@ -160,27 +148,24 @@
       },
       "p2pParticipate": {
         "Name": "Share files with the other players",
-        "Hint": "Turn off on a limited connection. With direct connections the other players in the world see this browser's IP address; turning it off avoids that."
-      },
-      "p2pUploadCapMBps": {
-        "Name": "Fastest sending to other players (MB/s)",
-        "Hint": "Limits how much of your connection is used to send files to other players."
+        "Hint": "Turn off on a limited connection. Players who share see each other's IP address; turning it off avoids that."
       },
       "cacheQuotaMB": {
         "Name": "Space for stored files (MB)",
         "Hint": "How much space stored files may take in this browser. The least used leave first when it fills up."
       },
-      "library": {
-        "Name": "Optimization library",
-        "Hint": "Internal record of every original and its optimized copy. Do not edit by hand."
+      "preloadScope": {
+        "Name": "How much to download ahead",
+        "Hint": "Everything: the whole world, little by little. Only this session: what the session will likely need, never the rest of the world. Nothing: files download only when they are used. It starts lighter when the browser's data saver is on or on a mobile connection.",
+        "Choices": {
+          "all": "Everything",
+          "session": "Only this session",
+          "off": "Nothing"
+        }
       },
-      "nextScenes": {
-        "Name": "Next scenes",
-        "Hint": "Scenes the GM marked to preload first."
-      },
-      "cdnStatus": {
-        "Name": "CDN status",
-        "Hint": "Internal result of the last CDN detection."
+      "p2pUploadCapMbps": {
+        "Name": "Fastest sending to other players (Mbps)",
+        "Hint": "Limits how much of your connection is used to send files to the other players. Keep it well below your upload speed, so voice chat and the game stay smooth."
       }
     },
     "Dashboard": {
@@ -190,12 +175,12 @@
       "Menu": {
         "Name": "Optimal Foundry dashboard",
         "Label": "Open dashboard",
-        "Hint": "Follow media optimization, network and P2P, and choose what to preload."
+        "Hint": "Follow file optimization, the network and sharing between players, and choose what to preload."
       },
       "Tabs": {
         "media": "Media",
         "network": "Network",
-        "p2p": "P2P",
+        "p2p": "Sharing",
         "preload": "Preloading",
         "cleanup": "Cleanup"
       },
@@ -270,7 +255,8 @@
           "off": "Optimizing existing files is off. Only what is uploaded from now on is optimized (if that option is on)."
         },
         "WaitingWelcome": "Nothing is converted until someone finishes the module's welcome screen.",
-        "WaitingWelcomeShort": "Waiting for the welcome screen"
+        "WaitingWelcomeShort": "Waiting for the welcome screen",
+        "HeavyWaiting": "{count} heavy file(s) wait for the players to leave: converting them now can slow this browser and the game. They are converted on their own once no player is connected."
       },
       "Network": {
         "Profile": "Profile",
@@ -280,7 +266,6 @@
         "HostUpload": "Server upload",
         "PreloadRate": "Preload bandwidth",
         "StaggerJoin": "Staggered join",
-        "P2P": "P2P",
         "IdleAfter": "Idle after",
         "MaxFile": "Largest preloaded file",
         "Cdn": "CDN",
@@ -288,7 +273,7 @@
         "CdnDetected": "Caching CDN",
         "CdnOn": "CDN active",
         "CdnOff": "no CDN",
-        "CdnHeader": "cf-cache-status header",
+        "CdnHeader": "What the test saw",
         "CheckedAt": "Checked at",
         "LocalHint": "On localhost the CDN is measured by a connected player. Click Detect again with a player online.",
         "Preload": "Preloading",
@@ -304,46 +289,36 @@
         "Rate": "Speed",
         "SceneReady": "Scene ready",
         "Idle": "Idle",
-        "P2PCell": "↑ {up} ↓ {down} · peers: {peers}",
         "NoClients": "No player data yet.",
         "Unavailable": "The network manager is unavailable (see the console).",
         "MeasuredBy": "measured by {by} at {origin}",
         "NextReady": "Ready for what's next",
         "QueuePos": "queue #{position}",
         "Joining": "loading now",
-        "PreloadServing": "Serving the queue (this browser does not preload)"
+        "PreloadServing": "Serving the queue (this browser does not preload)",
+        "Slowed": "slowed down",
+        "BudgetSlowed": "Downloading ahead is slowed down right now ({rate} instead of up to {ceiling}): the connection is answering slowly ({rtt} ms), so the module leaves room for the game."
       },
       "P2P": {
-        "ServiceWorker": "Local cache (Service Worker)",
+        "ServiceWorker": "Local cache",
         "SwActive": "Cache active",
         "SwInactive": "No cache",
-        "Supported": "Supported",
-        "Registered": "Registered",
-        "Controlling": "Controlling the page",
-        "Scope": "Scope",
+        "Supported": "This browser supports it",
+        "Registered": "Installed",
+        "Controlling": "Active on this page",
         "Cache": "Cached files",
-        "Swarm": "Player network",
-        "PeersCount": "peers: {count}",
+        "Swarm": "This browser's sharing",
+        "PeersCount": "{count} connection(s)",
         "Sent": "Sent",
         "Received": "Received",
         "Files": "files",
         "Failures": "Failures",
         "Participate": "This browser takes part",
-        "UploadCap": "cap",
-        "Peers": "Peers",
+        "UploadCap": "sending limit",
+        "Peers": "This browser's direct connections",
         "Connection": "Connection",
         "Rtt": "Latency",
-        "NoPeers": "No peers connected.",
-        "Insecure": "This page is neither HTTPS nor localhost: the browser blocks the local cache and P2P.",
-        "State": {
-          "new": "New",
-          "connecting": "Connecting",
-          "connected": "Connected",
-          "disconnected": "Disconnected",
-          "failed": "Failed",
-          "closed": "Closed",
-          "banned": "Banned"
-        }
+        "NoPeers": "No direct connection to another player right now."
       },
       "Preload": {
         "NextScenes": "Put first (optional)",
@@ -367,7 +342,7 @@
         "Playlist": "playlist",
         "Disabled": "Preloading is turned off in the settings. The choices below are kept for when you turn it on.",
         "Auto": "Automatic prediction",
-        "AutoHint": "The module decides on its own what each player downloads while the network is idle, most likely first: the scenes players are viewing, the rest of the active scene and its playlist, what is playing, the neighbouring scenes in the navigation bar and in the folder, teleport destinations, then the other scenes in the bar, the players' characters, and finally the rest of the world (the other scenes and playlists, hidden ones too, and the images of journals players can see). The bandwidth set aside for it, P2P between players and each browser's storage decide how far it gets. You do not need to mark anything.",
+        "AutoHint": "The module decides on its own what each player downloads while the network is idle, most likely first: the scenes players are viewing, the rest of the active scene and its playlist, what is playing, the neighbouring scenes in the navigation bar and in the folder, teleport destinations, then the other scenes in the bar, the players' characters, and finally the rest of the world (the other scenes and playlists, hidden ones too, and the images of journals players can see). The bandwidth set aside for it, sharing between players and each browser's storage decide how far it gets. You do not need to mark anything.",
         "Tier": {
           "0": "Now",
           "1": "Likely",
@@ -438,8 +413,8 @@
         },
         "OriginHint": {
           "world": "Files inside worlds/<this world>/.",
-          "module": "Files from installed modules (modules/…). Optimized versions go to the optimal-foundry/ folder in Data, because a module's folder is replaced when it updates.",
-          "system": "Files from the game system (systems/…). Optimized versions go to the optimal-foundry/ folder in Data.",
+          "module": "Files from installed modules (modules/…). Optimized versions go to an optimal-foundry/ folder inside this world's folder, because a module's folder is replaced when it updates.",
+          "system": "Files from the game system (systems/…). Optimized versions go to an optimal-foundry/ folder inside this world's folder.",
           "core": "Icons, sounds and images that ship with Foundry (icons/, sounds/, ui/…). Almost all are already WebP or Ogg.",
           "data": "Files in other Data folders, outside worlds/, modules/ and systems/ (for example an assets/ folder of yours).",
           "otherWorld": "Files stored in another world's folder that this world also uses."
@@ -463,7 +438,8 @@
         "External": "{count} file(s) live at another address (S3, a CDN or another site) and are not read: the module only converts files the Foundry server itself stores. Examples: {examples}",
         "Vector": "{count} SVG image(s) stay as they are: they are vector images and already light.",
         "Packs": "{packs} module and system compendium(s) ({documents} documents) are not read. They belong to the module or system and would go back to the original on its next update, so the module leaves them alone. What you import into the world (scenes, actors, journals) is read and optimized.",
-        "PacksAll": "{packs} compendium(s) ({documents} documents) are not read, including the world's own, because \"Include the world's compendiums\" is off. Module and system compendiums are never read: they would go back to the original on the next update. What you import into the world is read and optimized."
+        "PacksAll": "{packs} compendium(s) ({documents} documents) are not read, including the world's own, because \"Include the world's compendiums\" is off. Module and system compendiums are never read: they would go back to the original on the next update. What you import into the world is read and optimized.",
+        "Repaired": "{count} reference(s) were pointed back at the original file, because the optimized copy was no longer on the server."
       },
       "Review": {
         "Title": "Waiting for your approval",
@@ -480,7 +456,7 @@
       }
     },
     "Reasons": {
-      "tooLarge": "larger than 16383 px (WebP limit)",
+      "tooLarge": "too large to convert (too many pixels, or the converted file would not fit the upload limit)",
       "animatedGifImageField": "animated GIF used as an image; kept",
       "missing": "file not found on the server",
       "noSavings": "converting would not save enough",
@@ -491,15 +467,14 @@
       "encodeError": "conversion failed",
       "uploadFailed": "uploading the optimized copy failed",
       "rewriteFailed": "updating references failed",
-      "insecureContext": "page is not HTTPS",
-      "unsupportedBrowser": "browser not supported",
       "disabled": "turned off in the settings",
-      "registrationFailed": "Service Worker registration failed",
       "restored": "restored to the original by the GM; it will not be optimized again automatically",
       "interrupted": "the conversion was interrupted (the browser crashed or closed)",
+      "stalled": "the conversion stopped making progress and was cancelled",
       "notPersisted": "the library could not be saved; references were not changed",
       "scanFailed": "scanning the world failed",
       "workerStopped": "background optimization stopped after an error",
+      "uploadStopped": "stopped after several uploads in a row failed",
       "declined": "You chose to leave it as it is"
     },
     "Library": {
@@ -513,6 +488,11 @@
         "audio": "audio files"
       },
       "UploadFailed": "Could not upload the optimized file to the server",
+      "UploadTimeout": "The server did not answer the upload in time",
+      "UploadIncomplete": "The optimized file did not arrive whole on the server",
+      "UploadStopped": "Background optimization stopped: {count} uploads in a row failed. Check the free space on the server's disk and the connection, then press Start in the dashboard.",
+      "NotCapableInsecure": "This page is not on HTTPS (nor on localhost), so the browser cannot convert files here. To optimize the files the world already has, open it through an https:// address, or through localhost on the server's own computer.",
+      "Repaired": "{files} optimized file(s) were no longer on the server. {references} reference(s) point at the originals again, and those files will be optimized again.",
       "ConvertFailed": "Conversion failed",
       "UndoPaused": "Background optimization is paused. Press Start in the dashboard to resume it."
     },
@@ -521,6 +501,7 @@
       "Optimized": "{name} optimized: {saved}% smaller.",
       "ConvertFailed": "Could not optimize {name}. The original was uploaded.",
       "NotCapable": "This browser cannot convert {name}. The original was uploaded and the GM will optimize it in the background.",
+      "NotCapableInsecure": "This page is not on HTTPS (nor on localhost), so the browser cannot convert {name}. The original was uploaded and the GM will optimize it in the background.",
       "UploadTooLarge": "{name} is {size} MB. The Cloudflare tunnel limits uploads to 100 MB, so this upload may fail. Upload from the server machine or make the file smaller.",
       "Reason": {
         "notCapable": "Browser cannot convert this format",
@@ -528,7 +509,7 @@
         "vector": "Vector images (SVG) are not converted",
         "unsupported": "Unsupported format",
         "undecodable": "The browser could not read the file",
-        "tooLarge": "Larger than 16383 px per side (WebP limit)",
+        "tooLarge": "Too large to convert: the image has too many pixels, or the converted file would not fit the upload limit",
         "noSavings": "The optimized version was not small enough",
         "lowBitrate": "Low-bitrate MP3; converting is not worth it",
         "missing": "File not found on the server",
@@ -537,7 +518,8 @@
         "audioNotEncodable": "The video's audio could not be converted",
         "animatedGif": "Animated GIF kept as-is on upload",
         "animatedGifImageField": "Animated GIF used in an image field; kept as-is",
-        "animatedGifDisabled": "Animated GIF conversion is turned off"
+        "animatedGifDisabled": "Animated GIF conversion is turned off",
+        "loopLength": "Looping sound kept as it is: the converted copy would click each time the loop restarts"
       },
       "OptimizedBatch": "{count} files optimized, {mb} MB saved."
     },
@@ -545,8 +527,8 @@
       "WaitingTurn": "Waiting for your turn to load the scene (position {position} in the queue)."
     },
     "Cdn": {
-      "Found": "Caching CDN detected (cf-cache-status: {status}). The automatic profile now uses the CDN.",
-      "NotFound": "No caching CDN detected (result: {status}). The automatic profile uses the tunnel limits.",
+      "Found": "A CDN that keeps the files was found (test result: {status}). The automatic profile now uses it.",
+      "NotFound": "No CDN that keeps the files was found (test result: {status}). The automatic profile uses the limits of a connection without CDN.",
       "Status": {
         "HIT": "Cached (HIT)",
         "MISS": "Not cached yet (MISS)",
@@ -567,7 +549,8 @@
     "Sw": {
       "Version": "Version",
       "OutdatedBadge": "outdated",
-      "Outdated": "optimal-foundry-sw.js in the Data root is outdated (v{version}, expected v{expected}). Copy modules/optimal-foundry/sw.js there again.",
+      "Outdated": "Optimal Foundry: the file optimal-foundry-sw.js in Foundry's Data folder is a copy from an older version of the module (v{version}, expected v{expected}). Replace it with the bridge file of the same name from the module's folder (Data/modules/optimal-foundry); after that, module updates need no new copy.",
+      "OutdatedServer": "Optimal Foundry: the local cache is still running an older version (v{version}, expected v{expected}) and the server offered no newer one. Reload the page; if this message comes back, the server or a CDN in front of it is still handing out an old modules/optimal-foundry/sw.js.",
       "Persisted": "Persistent storage"
     },
     "Preload": {
@@ -575,21 +558,24 @@
     },
     "P2P": {
       "SwReason": {
-        "insecure": "The Service Worker needs HTTPS or localhost.",
-        "unsupported": "This browser has no Service Worker or Cache Storage.",
-        "scopeDenied": "The server does not send \"Service-Worker-Allowed: /\". Copy sw.js to the Data root as optimal-foundry-sw.js.",
-        "notFound": "Could not download the module's sw.js.",
-        "notActive": "The Service Worker registered but did not activate in time. Reload the page.",
-        "error": "The Service Worker failed to start. See the console."
+        "insecure": "The local cache needs HTTPS (or localhost).",
+        "unsupported": "This browser cannot keep a local cache.",
+        "scopeDenied": "The local cache could not start: the module's bridge file is not in Foundry's Data folder.",
+        "notFound": "The local cache could not start: the module's file was not found on the server.",
+        "notActive": "The local cache was installed but did not start in time. Reload the page.",
+        "error": "The local cache failed to start. See the console."
       },
       "SwarmReason": {
-        "optOut": "You turned P2P off in this browser.",
-        "insecure": "P2P needs HTTPS or localhost.",
-        "noWebRTC": "This browser has no WebRTC.",
-        "noCrypto": "This browser has no Web Crypto to verify files.",
-        "noCache": "This browser has no Cache Storage.",
-        "error": "P2P failed to start. See the console.",
-        "local": "This browser reaches the server locally; it neither seeds nor downloads by P2P (its upload would share the server's link)."
+        "disabled": "Sharing is turned off in the module's settings.",
+        "cdn": "The game is behind a CDN, which already delivers the files quickly, so players do not send files to each other.",
+        "notChosen": "You have not chosen yet whether this browser shares files with the other players. Until you do, it stays out.",
+        "optOut": "You turned sharing off in this browser.",
+        "insecure": "Sharing needs HTTPS (or localhost).",
+        "noWebRTC": "This browser cannot open direct connections to other players.",
+        "noCrypto": "This browser cannot check the files it would receive.",
+        "noCache": "The local cache is not active in this browser, and sharing needs it.",
+        "error": "Sharing failed to start. See the console.",
+        "local": "This browser runs on the server's own computer, so it stays out of sharing on purpose: what it sent would use the server's own connection."
       },
       "PeerState": {
         "connecting": "Connecting",
@@ -597,28 +583,38 @@
         "failed": "Failed",
         "closed": "Closed"
       },
-      "LastFailure": "Last failure: {name}, {reason} (local: {local}; remote: {remote})"
+      "LastFailure": "Last failed connection: {name}: {reason}",
+      "LastFailureRoutes": "routes tried: here {local}; there {remote}",
+      "FailReason": {
+        "iceTimeout": "the two browsers found no direct path to each other in time (often a strict router or network)",
+        "failed": "the direct connection could not be made",
+        "disconnected": "the connection dropped",
+        "error": "the browser refused to open the connection"
+      }
     },
     "Connection": {
       "Title": "My connection",
       "Menu": {
         "Name": "My connection",
         "Label": "Open",
-        "Hint": "See how this device loads the game (local cache, P2P, preloading) and change its own options."
+        "Hint": "See how this device loads the game (local cache, sharing with the other players, downloading ahead) and change its own options."
       },
       "Status": "This device",
       "Cache": "Local cache",
       "CacheUsage": "{used} of {quota} · {files} files",
-      "P2POn": "On · {peers} peers · ↑ {up} ↓ {down}",
-      "PreloadProgress": "On · {done} of {total} files",
+      "P2POn": "On · {peers} connected · ↑ {up} ↓ {down}",
+      "PreloadProgress": "{scope} · {done} of {total} files",
       "Options": "Options for this device",
       "OptionsHint": "Saved in this browser only; other players and the GM are not affected.",
       "ClearCache": "Clear this device's cache",
       "ClearCacheConfirm": "Delete the optimized files saved in this browser? They are downloaded again when needed.",
-      "ClearCacheDone": "Optimal Foundry: cache cleared ({size} freed)."
+      "ClearCacheDone": "Optimal Foundry: cache cleared ({size} freed).",
+      "CacheNotEnabled": "The game master has not turned on the local cache on this server yet. Until then, files are downloaded again each session and players cannot share them.",
+      "NotChosen": "You have not answered this browser's first questions yet. Until you do, it shares nothing with the other players.",
+      "Choose": "Choose"
     },
     "Cleanup": {
-      "Intro": "Originals the module already replaced with optimized versions still take up space. Foundry does not let modules delete files, so the cleanup empties each original: the file stays in its folder under the same name, but becomes 0 bytes and stops taking space. Only files in this world's folder qualify: already converted, mentioned by nothing in the world anymore (scenes, sheets, journals, macros, chat, settings and world compendiums), and with an intact optimized version. Other worlds are not checked: if one of them uses files from this world's folder, do not empty them.",
+      "Intro": "Originals the module already replaced with optimized versions still take up space. Foundry does not let modules delete files, so the cleanup empties each original: the file stays in its folder under the same name, but becomes 0 bytes and stops taking space. Only files in this world's folder qualify: already converted, mentioned by nothing this world loads (scenes, sheets, journals, macros, chat, settings, every compendium, the system's and the active modules' too, and the descriptions of the world, the system and the modules; token art picked by a name pattern counts as in use), and with an intact optimized version. What the check cannot see: other worlds on this server, compendiums of modules that are turned off, and macros that put a file name together while they run. If any of those uses files from this world's folder, do not empty them.",
       "Progress": "Emptying {done} of {total}…",
       "LastRun": "Last cleanup",
       "LastSummary": "{emptied} emptied, {kept} kept, {freed} freed",
@@ -628,22 +624,23 @@
       "NotAnalyzed": "Click Analyze to look for originals that can be emptied.",
       "None": "No original can be emptied right now.",
       "InUse": "{count} still in use in the world",
-      "OutsideWorld": "{count} outside the world folder",
+      "OutsideWorld": "{count} outside the world folder or not checkable",
       "BrokenCopy": "{count} with a missing or different optimized version",
-      "Gone": "{count} already empty or removed",
+      "Gone": "{count} already empty",
+      "Missing": "{count} not found on the server",
       "SelectAll": "Select all",
       "Original": "Original",
       "Replacement": "Optimized",
       "CleanSelected": "Empty selected ({count} · {size})",
       "CleanAll": "Empty all ({count} · {size})",
       "ConfirmTitle": "Empty originals",
-      "Confirm": "Empty {count} original(s) and free {size}? Each file becomes 0 bytes and its content cannot be recovered. Scenes, sheets and playlists keep using the optimized versions, but Undo no longer applies to these files. Each file is checked again before it is emptied.",
+      "Confirm": "Empty {count} original(s) and free {size}? Scenes, sheets and playlists keep using the optimized versions. Each file is checked again before it is emptied.",
       "ConfirmYes": "Empty",
       "Emptied": "original emptied",
       "Reason": {
         "notEligible": "can no longer be emptied",
         "inUse": "mentioned in the world again",
-        "gone": "already empty or removed",
+        "gone": "already empty",
         "changed": "changed after conversion",
         "noHash": "no recorded hash",
         "copyMissing": "optimized version is missing",
@@ -652,10 +649,19 @@
         "uploadFailed": "the server refused the empty file",
         "error": "error",
         "unknownSize": "the server did not report the size",
-        "uncertain": "could not confirm it was emptied; marked as emptied to be safe"
+        "uncertain": "could not confirm it was emptied; marked as emptied to be safe",
+        "missing": "not found on the server; nothing was changed",
+        "notCoordinator": "not reached: another GM session took over the optimization"
+      },
+      "Error": {
+        "UndoRunning": "An undo is running. Try the cleanup again when it ends.",
+        "NotCoordinator": "Only the GM session that coordinates optimization can run the cleanup.",
+        "Compendium": "Could not read the compendium {pack}, so nothing was emptied ({error})."
       },
       "NotCoordinator": "The cleanup only runs in the GM session that coordinates optimization (the GM with the highest role, in the tab opened first). The buttons are locked here.",
-      "Lead": "Empties the originals already replaced, to free space. It cannot be undone."
+      "Lead": "Empties the originals already replaced, to free space. It cannot be undone, and other worlds on this server are not checked.",
+      "ConfirmOtherWorlds": "Other worlds on this server are not checked. If another world uses one of these files, it will be broken there.",
+      "ConfirmNoUndo": "This cannot be undone: each file becomes 0 bytes, its content cannot be recovered, and Undo no longer applies to it."
     },
     "Config": {
       "Title": "Optimal Foundry: settings",
@@ -700,7 +706,8 @@
       "Save": "Save",
       "Reset": "Default values",
       "Saved": "{count} setting(s) saved.",
-      "Welcome": "Welcome"
+      "Welcome": "Welcome",
+      "WelcomeUnsaved": "Some changes here are not saved yet. Save them and open the welcome screen?"
     },
     "Tracker": {
       "Toggle": "Optimal Foundry panel",
@@ -708,12 +715,10 @@
       "Collapse": "Collapse",
       "Expand": "Expand",
       "Hide": "Hide (bring it back from the Tokens controls)",
-      "PeersHint": "P2P: open connections, sent and received",
       "PlayersTitle": "Players",
       "PreloadOff": "Preloading is off.",
       "NoPlayers": "No players connected.",
       "ReadyCount": "{ready}/{total} ready",
-      "P2POff": "P2P off",
       "Setup": "Set up",
       "Review": "Review",
       "NextTip": "Next scenes: {next} files ({left} left)",
@@ -728,7 +733,8 @@
         "Waiting": "Waiting for the network to be free · {queued} queued",
         "ExistingOff": "Existing files are not optimized.",
         "Done": "All caught up · {saved}% smaller",
-        "Idle": "Nothing to convert right now."
+        "Idle": "Nothing to convert right now.",
+        "HeavyWaiting": "{count} heavy file(s) waiting for the players to leave"
       },
       "State": {
         "stale": "No news for a while",
@@ -741,7 +747,10 @@
       },
       "PlayersOtherGM": "Players show up in the coordinating GM session.",
       "PlayersHint": "The bar shows how much of what comes next each player already has: the scenes someone is viewing, the active scene, its neighbours and what is playing. Hover a player for details.",
-      "PlanHint": "Preload queue: now · likely · later"
+      "PlanHint": "Preload queue: now · likely · later",
+      "ConvertNow": "Convert now",
+      "AllReady": "Everyone is ready for {scene}",
+      "AllReadyNotice": "Optimal Foundry: every player already has what {scene} needs."
     },
     "Welcome": {
       "Title": "Welcome to Optimal Foundry",
@@ -773,7 +782,7 @@
       "UploadHint": "How much the internet of whoever hosts Foundry can send (upload speed). The module uses it so the connection does not choke.",
       "TrackerName": "Show the floating panel",
       "TrackerHint": "A small panel, GM only, with what is being optimized and whether each player already has what comes next. Drag it, collapse it or hide it; it comes back from the Tokens controls.",
-      "Outro": "Until this screen is finished, no existing file is converted. Preloading and P2P already run with the defaults.",
+      "Outro": "Until this screen is finished, no existing file is converted. Downloading ahead already runs with the defaults; sharing starts for each player once they choose it.",
       "Later": "Not now",
       "Start": "Start",
       "LaterNotice": "Fine. The screen comes back the next time you enter; until then, no existing file is converted.",
@@ -781,7 +790,91 @@
       "Lead": "Choose how the module works in this world. You can change everything later.",
       "KeepCurrent": "Custom",
       "KeepCurrentHint": "The current quality values match no preset. Without picking a preset, they stay as they are.",
-      "OutroShort": "Nothing is converted until you click Start."
+      "OutroShort": "Nothing is converted until you click Start.",
+      "Card": {
+        "recommended": "Looks the same, much smaller.",
+        "saver": "Smallest files, some quality lost.",
+        "quality": "Light compression, most detail.",
+        "networkOnly": "No file is converted.",
+        "review": "You approve each file first.",
+        "auto": "Converts everything in the background.",
+        "off": "Existing files stay as they are.",
+        "optimizeUploads": "New uploads go up already light.",
+        "preloadEnabled": "Players get the next scenes early.",
+        "p2pEnabled": "Players pass files to each other.",
+        "tracker": "A small status box over the map."
+      }
+    },
+    "Setup": {
+      "Title": "One step left: turn on the local cache",
+      "Missing": "The local cache (and sharing between players) cannot start until one small file of the module, the bridge file, is in Foundry's Data folder.",
+      "Stale": "The file optimal-foundry-sw.js in Foundry's Data folder is from an older version of the module and must be replaced by the new one.",
+      "How": "Copy the file optimal-foundry-sw.js from the module's folder (Data/modules/optimal-foundry) into the Data folder itself, next to the modules and worlds folders, replacing the file if it is already there. Then click Check again.",
+      "Check": "Check again",
+      "Where": "Where is the Data folder?",
+      "WhereNote": "These are the usual places. If you chose another folder when installing Foundry, or use a hosting service, look for the folder that holds modules and worlds.",
+      "Done": "Optimal Foundry: the local cache is on.",
+      "StillMissing": "Optimal Foundry: the file was not found yet. Check that optimal-foundry-sw.js is in the Data folder itself, with exactly that name.",
+      "StillStale": "Optimal Foundry: the file in the Data folder is still the old one. Replace it with the one from the module's folder.",
+      "Short": "Local cache: one step left",
+      "Finish": "Finish"
+    },
+    "Blocker": {
+      "insecure": "This page is not on HTTPS (nor on localhost), so the browser does not allow converting files, the local cache or sharing between players here. Downloading ahead and the network control still work. To use everything, open the world through an https:// address, or through localhost on the server's own computer.",
+      "unsupported": "This browser cannot convert files. Use an up-to-date Chrome, Edge or Firefox, or the Foundry app."
+    },
+    "Health": {
+      "Title": "Browser",
+      "Cache": "Cache",
+      "Share": "Sharing",
+      "Unknown": "no information yet",
+      "SecureYes": "HTTPS: yes",
+      "SecureNo": "HTTPS: no",
+      "CacheYes": "local cache: on",
+      "CacheNo": "local cache: off",
+      "ShareYes": "sharing: on",
+      "ShareNo": "sharing: off ({reason})",
+      "Blocker": {
+        "https": "the page is not on HTTPS",
+        "cache": "the local cache is not active there",
+        "local": "on the server's own computer, kept out on purpose",
+        "choice": "turned off there, or the player has not chosen yet"
+      }
+    },
+    "Sharing": {
+      "Title": "Sharing between players",
+      "Intro": "A player who already has an optimized file sends it straight to the others, which spares the host's upload. Every file is checked before it is used. A browser on the server's own computer never takes part.",
+      "Off": "Sharing off",
+      "OffSetting": "It is turned off in the module's settings.",
+      "OffCdn": "Behind a CDN it is not used: the CDN already spares your connection, so players would gain nothing from sending files to each other.",
+      "Count": "{sharing} sharing · {links} connection(s)",
+      "Nobody": "Nobody sharing yet",
+      "NoPlayers": "No player is connected.",
+      "Moved": "Passed between players",
+      "Why": {
+        "https": "The players' page is not on HTTPS, and sharing needs it.",
+        "cache": "The local cache is not active in the players' browsers, and sharing needs it.",
+        "choice": "The players turned it off, or have not chosen yet (each one is asked the first time they enter).",
+        "local": "The players are on the server's own computer, so they stay out on purpose."
+      }
+    },
+    "FirstRun": {
+      "Title": "Your connection in this game",
+      "Lead": "Choose how this browser takes part in this game. You can change it later in My connection.",
+      "ShareTitle": "Share files with the other players?",
+      "ShareYes": "Yes, share",
+      "ShareYesLine": "Files you already have go straight to the others, and theirs to you.",
+      "ShareNo": "No",
+      "ShareNoLine": "Everything comes from the game's server.",
+      "ShareIp": "Players who share see each other's IP address.",
+      "ScopeTitle": "How much to download ahead?",
+      "Scope": {
+        "all": "The whole world, little by little.",
+        "session": "Only what this session needs.",
+        "off": "Files download when they are used."
+      },
+      "Outro": "On a mobile or limited connection, prefer the lighter options.",
+      "Save": "Save"
     }
   }
 }

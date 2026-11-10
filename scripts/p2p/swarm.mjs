@@ -2,7 +2,7 @@ import { MODULE_ID, OUTPUT, warn, log, extOf, isOptimizedPath, sha256Hex } from 
 import { getSetting, effectiveNetwork } from "../settings.mjs";
 import { on, emit, request, activeGM, isCoordinator, MSG } from "../socket.mjs";
 import { findByOptimized, normalizePath } from "../library.mjs";
-import { isLocalOrigin } from "../net/cdn.mjs";
+import { isLoopbackOrigin } from "../net/cdn.mjs";
 import { cachedOptimizedUrls, readCached, sendSwConfig } from "./sw-client.mjs";
 
 /**
@@ -13,14 +13,24 @@ import { cachedOptimizedUrls, readCached, sendSwConfig } from "./sw-client.mjs";
  * that. Clients announce every optimized path they cache; the library, sha256 and size floor are checked only at
  * WANT time (names are content-addressed, so an early or stale holder is never served wrongly). The coordinator
  * pulls full lists with P2P_RESYNC when it starts, when it takes over, and when a user (re)connects.
- * The GM is also a normal peer unless it reaches the server through a local origin (then it only tracks); its own
+ * The GM is also a normal peer unless its browser runs on the server's own machine (then it only tracks); its own
  * messages go straight to the local tracker (the socket never echoes).
  *
- * Source selection: while the game waits on media (`urgent`), only already-open peers are used, and never behind a
- * caching CDN. Background (preload) fetches may wait for ICE; progress pings keep the SW from timing out meanwhile.
+ * On or off: `blocker()` lists what keeps a browser out of the swarm (P2P off for the world or behind a CDN, the
+ * player has not chosen yet or opted out, the server's own machine, no HTTPS, no WebRTC, no Service Worker
+ * controlling the page). A browser that is out opens no peer connection, answers no signaling and announces
+ * nothing; it switches live when one of those settings or the page's controller changes.
+ *
+ * Source selection: while the game waits on media (`urgent`), only already-open peers are used. Background
+ * (preload) fetches may wait for ICE; progress pings keep the SW from timing out meanwhile.
  * At most MAX_DOWNLOADS files download at once. A seeder that answers `busy` is dropped for that file at once on an
  * urgent load; a preload lane backs off and asks again. Pieces no peer delivered come from the host by one Range.
  * Endgame: an idle lane duplicates the oldest piece in flight from a single peer; the first copy wins.
+ *
+ * The game never waits on a slow peer: when an urgent load starts on this browser (`optimal-foundry.urgentLoad`)
+ * every background download in flight takes the rest of its file from the host, and an urgent download that
+ * averages under URGENT_FLOOR_BPS over URGENT_WINDOW_MS does the same. After a P2P_WANT that got no answer the
+ * tracker is not asked again for TRACKER_SKIP_MS.
  *
  * Signaling: P2P_SIGNAL with the "perfect negotiation" pattern; polite side = lower userId.
  * Every message carries the sender's session id (`<page epoch>:<counter>`) so a reload or a reconnect
@@ -48,7 +58,13 @@ const IDLE_CLOSE_MS = 120_000;
 const TICK_MS = 5000;
 const PING_MS = 10_000;
 const WANT_TIMEOUT_MS = 5000;
+const TRACKER_SKIP_MS = 30_000;        // after a WANT with no answer (GM reloading or dropped), go straight to the host
 const MAX_P2P_BYTES = 768 * 1_048_576; // whole file is assembled in memory for the SHA-256 check
+const LOW_MEMORY_P2P_BYTES = 128 * 1_048_576; // ...and held twice for a moment: less on devices with little RAM
+const LOW_MEMORY_GB = 4;
+const URGENT_FLOOR_BPS = 256 * 1024;   // an urgent download slower than this finishes from the host
+const URGENT_WINDOW_MS = 2000;         // ...measured over windows of this length
+const URGENT_CHECK_MS = 500;
 const BUFFER_HIGH = 4 * 1_048_576;
 const BUFFER_LOW = 1_048_576;
 const DEFAULT_RATE = 262_144;          // assumed bytes/s for a peer never measured
@@ -61,6 +77,8 @@ const STEAL_AFTER_MS = 2000;           // endgame duplicates only pieces in flig
 const BUSY_RETRIES = 6;                // preload: how often a lane re-asks a seeder at its upload cap
 const BUSY_BACKOFF_MS = 400;           // ...waiting this long times the attempt number (about 8 s in all)
 const DEBUG_ALLOW_LOCAL = `${MODULE_ID}.debug.allowLocalP2P`;
+/** Settings that decide whether this browser is in the swarm; a change of any is applied at once. */
+const SWITCH_KEYS = new Set(["cdnStatus", "networkProfile", "p2pEnabled", "p2pParticipate", "connectionChoiceDone"]);
 
 const S = { enabled: false, reason: undefined, up: 0, down: 0, servedFiles: 0, fetchedFiles: 0, failures: 0, lastFailure: null };
 const epoch = `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 8)}`;
@@ -75,6 +93,9 @@ const strikes = new Map();   // userId -> strike count
 const banned = new Set();
 const cooldown = new Map();  // userId -> epoch ms until which we do not dial it
 const fetching = new Map();  // path -> Promise<Blob|null>
+const downloads = new Set(); // Download objects in flight
+let urgentAt = -Infinity;    // performance.now() of the last urgent load that started on this browser
+let trackerSkipUntil = 0;    // epoch ms until which P2P_WANT is not sent
 const seedBlobs = new Map(); // path -> Blob (small LRU for seeding)
 let activeUploads = 0;
 const bucket = { tokens: 0, last: 0 };
@@ -87,7 +108,7 @@ let resyncTimer = null;
 
 // GM tracker state (memory only)
 const holders = new Map();   // path -> Set<userId>
-const byUser = new Map();    // userId -> Set<path>
+const byUser = new Map();    // userId -> Set<path>; a user is listed while its browser is in the swarm
 const reports = new Map();   // reporterId -> {[seederId]: bytesPerSec}
 const clientStats = new Map(); // userId -> {up, down, peers, at}
 
@@ -105,17 +126,20 @@ export function initSwarm() {
     on(MSG.P2P_RESYNC, (_payload, from) => {
       if (from !== activeGM()?.id) return;
       lastStatsKey = "";
+      trackerSkipUntil = 0; // the tracker is back
       scheduleResync(500 + Math.random() * 2500); // jitter: N clients must not all send their lists at once
     });
     Hooks.on("userConnected", onUserConnected);
     Hooks.on(`${MODULE_ID}.coordinatorChanged`, onCoordinatorChanged);
     Hooks.on(`${MODULE_ID}.settingChanged`, key => {
-      if (key === "p2pParticipate") getSetting("p2pParticipate") ? enable() : disable("optOut");
+      if (SWITCH_KEYS.has(key)) evaluate();
       else if (key === "iceServers") iceServers = null;
     });
+    Hooks.on(`${MODULE_ID}.urgentLoad`, onUrgentLoad);
+    // P2P fetches and serves through the worker's cache: follow the worker taking or losing this page.
+    globalThis.navigator?.serviceWorker?.addEventListener("controllerchange", evaluate);
     tickTimer = setInterval(tick, TICK_MS);
-    if (getSetting("p2pParticipate")) enable();
-    else disable("optOut");
+    evaluate();
     if (isCoordinator()) emit(MSG.P2P_RESYNC, {});
   } catch (err) {
     disable("error");
@@ -190,6 +214,36 @@ export function holderCount(path, excludeId) {
   return n;
 }
 
+/**
+ * Coordinator only: that user's browser is in the swarm right now (it announced itself to the tracker and is
+ * connected), so a file handed to it can reach the other players through it. False elsewhere.
+ * @param {string} userId
+ */
+export function canSeed(userId) {
+  return isCoordinator() && byUser.has(userId) && !!game.users.get(userId)?.active;
+}
+
+/**
+ * Coordinator only: the swarm as the players report it (the coordinator's own browser is usually not in it).
+ * `sharing`: browsers in the swarm; `links`: open connections between them; `upBytes` / `downBytes`: what they
+ * sent to and received from each other this session. All zero elsewhere.
+ * @returns {{sharing: number, links: number, upBytes: number, downBytes: number}}
+ */
+export function swarmOverview() {
+  const out = { sharing: 0, links: 0, upBytes: 0, downBytes: 0 };
+  if (!isCoordinator()) return out;
+  for (const id of byUser.keys()) if (game.users.get(id)?.active) out.sharing++;
+  let ends = 0;
+  for (const [id, s] of clientStats) {
+    if (!game.users.get(id)?.active) continue;
+    ends += s.peers;
+    out.upBytes += s.up;
+    out.downBytes += s.down;
+  }
+  out.links = Math.ceil(ends / 2); // each open link is reported by both of its ends
+  return out;
+}
+
 /** Called by sw-client when files land in Cache Storage. Accepts URLs or paths. */
 export function noteCached(urls) {
   if (!S.enabled) return;
@@ -221,14 +275,40 @@ function allowLocal() {
   try { return globalThis.localStorage?.getItem(DEBUG_ALLOW_LOCAL) === "1"; } catch { return false; }
 }
 
+/**
+ * Why this browser stays out of the swarm, or null when it may share. The first that applies:
+ * - "disabled" / "cdn": P2P is off for the world, or the world sits behind a caching CDN (`effectiveNetwork().p2p`).
+ * - "notChosen": a player who has not answered the first-run card yet; no IP address is exchanged before that.
+ * - "optOut": this browser's `p2pParticipate` is off.
+ * - "local": the browser runs on the server's own machine, so its upload is the server's upload.
+ * - "insecure", "noWebRTC", "noCrypto": the browser cannot do it.
+ * - "noCache": no Service Worker controls the page; P2P only fetches and serves through the worker's cache.
+ */
+function blocker() {
+  if (!effectiveNetwork().p2p) return getSetting("p2pEnabled") ? "cdn" : "disabled";
+  if (!game.user.isGM && !getSetting("connectionChoiceDone")) return "notChosen";
+  if (!getSetting("p2pParticipate")) return "optOut";
+  if (isLoopbackOrigin() && !allowLocal()) return "local";
+  if (!window.isSecureContext) return "insecure";
+  if (typeof RTCPeerConnection !== "function") return "noWebRTC";
+  if (!globalThis.crypto?.subtle) return "noCrypto";
+  if (!getSetting("serviceWorker") || !("caches" in globalThis) || !globalThis.navigator?.serviceWorker?.controller) return "noCache";
+  return null;
+}
+
+/** Bring the swarm in line with the settings and the page's Service Worker. */
+function evaluate() {
+  try {
+    const reason = blocker();
+    if (!reason) { if (!S.enabled) enable(); }
+    else if (S.enabled || S.reason !== reason) disable(reason);
+  } catch (err) {
+    disable("error");
+    warn("P2P swarm disabled", err);
+  }
+}
+
 function enable() {
-  // A client on a local origin (usually the GM on the host) shares the server's uplink: never seed or fetch.
-  const missing = isLocalOrigin() && !allowLocal() ? "local"
-    : !window.isSecureContext ? "insecure"
-    : typeof RTCPeerConnection !== "function" ? "noWebRTC"
-    : !globalThis.crypto?.subtle ? "noCrypto"
-    : !("caches" in globalThis) ? "noCache" : null;
-  if (missing) return disable(missing);
   S.enabled = true;
   S.reason = undefined;
   scheduleResync(1000);
@@ -242,7 +322,8 @@ function disable(reason) {
   for (const peer of [...peers.values()]) peer.close(true);
   pendingAdd.clear();
   pendingDrop.clear();
-  if (was) announce({ add: [], drop: [], reset: true });
+  clearTimeout(resyncTimer);
+  if (was) announce({ off: true });
   sendSwConfig();
 }
 
@@ -289,6 +370,7 @@ const strList = v => Array.isArray(v) ? v.filter(s => typeof s === "string").sli
 
 function trackerHave(userId, payload) {
   if (!userId || !payload || typeof payload !== "object") return;
+  if (payload.off) return trackerLeft(userId);
   let set = byUser.get(userId);
   if (payload.reset && set) {
     for (const p of set) dropHolder(p, userId);
@@ -316,10 +398,17 @@ function dropHolder(path, userId) {
   if (!h.size) holders.delete(path);
 }
 
-function trackerForget(userId) {
+/** That browser left the swarm (opted out, lost its Service Worker, P2P turned off): it holds and links nothing. */
+function trackerLeft(userId) {
   const set = byUser.get(userId);
   if (set) for (const p of set) dropHolder(p, userId);
   byUser.delete(userId);
+  const stats = clientStats.get(userId);
+  if (stats) stats.peers = 0;
+}
+
+function trackerForget(userId) {
+  trackerLeft(userId);
   reports.delete(userId);
   clientStats.delete(userId);
 }
@@ -418,21 +507,32 @@ function reportStats() {
 async function want(path) {
   if (isCoordinator()) return trackerWant(game.user.id, { url: path });
   const gm = activeGM();
-  if (!gm) return null;
+  if (!gm || Date.now() < trackerSkipUntil) return null;
   try { return await request(MSG.P2P_WANT, { url: path }, gm.id, WANT_TIMEOUT_MS); }
-  catch { return null; }
+  catch {
+    // The GM is reloading or dropped without a goodbye: every miss would wait the whole timeout for nothing.
+    trackerSkipUntil = Date.now() + TRACKER_SKIP_MS;
+    return null;
+  }
+}
+
+/** The whole file is assembled in memory and copied once into a Blob: keep it small where RAM is short. */
+const maxP2PBytes = () => (globalThis.navigator?.deviceMemory <= LOW_MEMORY_GB ? LOW_MEMORY_P2P_BYTES : MAX_P2P_BYTES);
+
+/** An urgent load started on this browser: nothing the game may be waiting for stays on a peer's upload speed. */
+function onUrgentLoad() {
+  urgentAt = performance.now();
+  for (const dl of downloads) if (!dl.urgent) dl.toHost();
 }
 
 async function download(path, signal, onProgress, urgent) {
   const entry = findByOptimized(path);
-  if (!entry?.sha256 || !(entry.bytes >= minBytes()) || entry.bytes > MAX_P2P_BYTES) return null;
+  if (!entry?.sha256 || !(entry.bytes >= minBytes()) || entry.bytes > maxP2PBytes()) return null;
   if (signal?.aborted) return null;
   const isOpen = id => peers.get(id)?.state === "open";
-  if (urgent) {
-    // The edge serves faster than a peer; and with no open link, any P2P attempt only adds latency.
-    if (effectiveNetwork().profile === "cdn") return null;
-    if (![...peers.values()].some(p => p.state === "open")) return null;
-  }
+  // With no open link, any P2P attempt only adds latency to what the game is waiting for.
+  if (urgent && ![...peers.values()].some(p => p.state === "open")) return null;
+  const asked = performance.now();
   const info = await want(path);
   if (!info?.peers?.length || (info.sha256 && info.sha256 !== entry.sha256) || (info.bytes && info.bytes !== entry.bytes)) return null;
   const now = Date.now();
@@ -446,28 +546,36 @@ async function download(path, signal, onProgress, urgent) {
   if (!candidates.length) return null;
 
   const dl = new Download(path, entry.bytes, signal, onProgress, urgent);
-  dl.progress();
-  const workers = new Map(); // promise -> userId
-  const launch = () => {
-    while (workers.size < MAX_FETCH_PEERS && candidates.length && !dl.finished && !dl.aborted) {
-      const userId = candidates.shift();
-      const w = connect(userId)
-        .then(peer => work(dl, peer))
-        .catch(() => {})
-        .finally(() => { workers.delete(w); dl.pulse(); });
-      workers.set(w, userId);
+  downloads.add(dl);
+  try {
+    if (!urgent && urgentAt >= asked) dl.toHost(); // an urgent load started while the tracker was answering
+    dl.progress();
+    const workers = new Map(); // promise -> userId
+    const launch = () => {
+      while (workers.size < MAX_FETCH_PEERS && candidates.length && dl.running) {
+        const userId = candidates.shift();
+        const w = connect(userId)
+          .then(peer => work(dl, peer))
+          .catch(() => {})
+          .finally(() => { workers.delete(w); dl.pulse(); });
+        workers.set(w, userId);
+      }
+    };
+    while (dl.running) {
+      launch();
+      if (!workers.size) break;
+      await Promise.race([...workers.keys(), dl.changed(), sleep(dl.urgent ? URGENT_CHECK_MS : CONNECT_PING_MS)]);
+      // A legitimate ICE handshake can take up to ICE_TIMEOUT_MS: keep the SW's inactivity timer from firing.
+      if ([...workers.values()].some(id => peers.get(id)?.state === "connecting")) dl.progress();
+      if (dl.urgent && dl.tooSlow()) dl.toHost();
     }
-  };
-  while (!dl.finished && !dl.aborted) {
-    launch();
-    if (!workers.size) break;
-    await Promise.race([...workers.keys(), dl.changed(), sleep(CONNECT_PING_MS)]);
-    // A legitimate ICE handshake can take up to ICE_TIMEOUT_MS: keep the SW's inactivity timer from firing.
-    if ([...workers.values()].some(id => peers.get(id)?.state === "connecting")) dl.progress();
+    // The peers ran out, or the game cannot wait for them, with part of the file delivered: take only the rest
+    // from the host. With nothing delivered the caller's own network fetch is the better one (it streams).
+    if (!dl.finished && !dl.aborted && dl.doneCount > 0) await fillFromHost(dl).catch(() => {});
+  } finally {
+    downloads.delete(dl);
+    dl.close();
   }
-  // Peers ran out with part of the file delivered: take only the rest from the host instead of all of it again.
-  if (!dl.finished && !dl.aborted && dl.doneCount > 0) await fillFromHost(dl).catch(() => {});
-  dl.close();
   if (!dl.finished || dl.aborted) return null;
 
   const hash = await sha256Hex(dl.buf);
@@ -499,6 +607,10 @@ class Download {
     this.doneCount = 0;
     this.contributors = new Set(); // every peer that wrote bytes into buf
     this.inflight = new Map();     // piece -> [{userId, t0, ctl}]
+    this.received = 0;             // bytes peers delivered so far
+    this.windowAt = performance.now(); // start of the current speed window, and `received` at that moment
+    this.windowBytes = 0;
+    this.host = false;             // the rest of the file comes from the host: no more piece goes to a peer
     this.aborted = !!signal?.aborted;
     this._wake = null;
     this._changed = null;
@@ -506,6 +618,25 @@ class Download {
     signal?.addEventListener("abort", this._onAbort, { once: true });
   }
   get finished() { return this.doneCount === this.nPieces; }
+  /** Peers may still be asked for pieces. */
+  get running() { return !this.finished && !this.aborted && !this.host; }
+  /** Stop asking peers; the caller takes what is missing from the host. Requests in flight are dropped. */
+  toHost() {
+    if (this.host) return;
+    this.host = true;
+    for (const list of [...this.inflight.values()]) for (const r of list) r.ctl.abort();
+    this.pulse();
+  }
+  /** True once a whole speed window averaged under the urgent floor. Starts the next window otherwise. */
+  tooSlow() {
+    const now = performance.now();
+    const elapsed = now - this.windowAt;
+    if (elapsed < URGENT_WINDOW_MS) return false;
+    const slow = (this.received - this.windowBytes) / (elapsed / 1000) < URGENT_FLOOR_BPS;
+    this.windowAt = now;
+    this.windowBytes = this.received;
+    return slow;
+  }
   take() { return this.queue.shift(); }
   /** Endgame: the oldest in-flight piece (older than STEAL_AFTER_MS) that only one other peer is fetching. */
   steal(userId) {
@@ -532,8 +663,9 @@ class Download {
     this.queue.unshift(i);
     this.pulse();
   }
-  wrote(userId) {
+  wrote(userId, bytes) {
     this.contributors.add(userId);
+    this.received += bytes;
     this.progress();
   }
   complete(i, userId) {
@@ -552,7 +684,7 @@ class Download {
 async function work(dl, peer) {
   let errors = 0, lastCode = null, refused = false, busy = 0;
   const lane = async () => {
-    while (!dl.finished && !dl.aborted && !refused && peer.state === "open" && errors < 2) {
+    while (dl.running && !refused && peer.state === "open" && errors < 2) {
       const idx = dl.take() ?? dl.steal(peer.userId);
       if (idx === undefined) {
         await Promise.race([dl.changed(), sleep(1000)]);
@@ -564,7 +696,7 @@ async function work(dl, peer) {
       dl.track(idx, req);
       const signal = dl.signal ? AbortSignal.any([dl.signal, req.ctl.signal]) : req.ctl.signal;
       try {
-        await peer.fetchRange(dl.path, start, end, dl.buf, signal, pieceTimeout(peer.userId, end - start), () => dl.wrote(peer.userId));
+        await peer.fetchRange(dl.path, start, end, dl.buf, signal, pieceTimeout(peer.userId, end - start), n => dl.wrote(peer.userId, n));
         dl.untrack(idx, req);
         measure(peer.userId, (end - start) / Math.max(0.001, (performance.now() - req.t0) / 1000));
         dl.complete(idx, peer.userId);
@@ -603,6 +735,8 @@ async function work(dl, peer) {
 /**
  * One Range request to the host for the span of pieces no peer delivered. Pieces inside the span that peers did
  * deliver are overwritten with the host's identical bytes; the caller still checks the whole file's SHA-256.
+ * The body is read as it arrives, with a progress ping per chunk: a long fill must not look like silence to the
+ * Service Worker, which would give up and download the whole file again.
  */
 async function fillFromHost(dl) {
   let first = -1, last = -1;
@@ -610,15 +744,24 @@ async function fillFromHost(dl) {
   if (first < 0) return;
   const start = first * PIECE;
   const end = Math.min(dl.size, (last + 1) * PIECE);
-  const url = new URL(foundry.utils.getRoute(dl.path), window.location.origin);
-  const res = await fetch(url, { headers: { Range: `bytes=${start}-${end - 1}` }, signal: dl.signal, credentials: "same-origin" });
-  if (res.status !== 206) { res.body?.cancel().catch(() => {}); return; }
-  const bytes = new Uint8Array(await res.arrayBuffer());
-  if (bytes.byteLength !== end - start || dl.aborted) return;
-  dl.buf.set(bytes, start);
+  const route = foundry.utils.getRoute(dl.path.split("/").map(encodeURIComponent).join("/"));
+  const res = await fetch(new URL(route, window.location.origin), {
+    headers: { Range: `bytes=${start}-${end - 1}` }, signal: dl.signal, credentials: "same-origin"
+  });
+  if (res.status !== 206 || !res.body) { res.body?.cancel().catch(() => {}); return; }
+  const reader = res.body.getReader();
+  let at = start;
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    if (at + value.byteLength > end) { reader.cancel().catch(() => {}); return; } // not the range that was asked for
+    dl.buf.set(value, at);
+    at += value.byteLength;
+    dl.progress();
+  }
+  if (at !== end || dl.aborted) return;
   for (let i = first; i <= last; i++) if (!dl.done[i]) { dl.done[i] = 1; dl.doneCount++; }
   dl.contributors.add("host"); // a mismatch then has two sources, so no peer is struck on the host's account
-  dl.progress();
 }
 
 function pieceTimeout(userId, bytes) {
@@ -661,7 +804,7 @@ const canvasLoading = () => !!globalThis.canvas?.loading;
 
 /** Per-client upload cap shared by every upload (token bucket, 1 s burst). */
 async function takeTokens(n) {
-  const rate = Math.max(0.25, Number(getSetting("p2pUploadCapMBps")) || 2) * 1_000_000;
+  const rate = (Number(getSetting("p2pUploadCapMbps")) || 4) * 125_000; // megabits per second -> bytes per second
   const burst = Math.max(rate, n);
   for (;;) {
     const now = performance.now();
@@ -919,7 +1062,7 @@ class Peer {
     req.received += data.length;
     this.downBytes += data.length;
     S.down += data.length;
-    req.onData?.();
+    req.onData?.(data.length);
   }
 
   onControl(msg) {

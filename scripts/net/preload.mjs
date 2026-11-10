@@ -3,12 +3,12 @@ import { getSetting, setSetting, effectiveNetwork } from "../settings.mjs";
 import { getEntry, findByOptimized, normalizePath, willConvert } from "../library.mjs";
 import { on, emit, activeGM, isCoordinator, MSG } from "../socket.mjs";
 import {
-  schedule, waitForPreloadWindow, registerStatusProvider, onClientGone, adjustBudget, chargeBatch, EST_BYTES,
-  askCoordinator, tellCoordinator, serveCoordinator, sceneReady, loadInBackground
+  schedule, waitForPreloadWindow, registerStatusProvider, onClientGone, chargeBatch, settleBatch, clientOrigin,
+  LATER_TIER, askCoordinator, tellCoordinator, serveCoordinator, sceneReady, loadInBackground
 } from "./scheduler.mjs";
-import { initCdnResponder, isLocalOrigin } from "./cdn.mjs";
-import { cachedOptimizedUrls, swStatus } from "../p2p/sw-client.mjs";
-import { holderCount } from "../p2p/swarm.mjs";
+import { initCdnResponder, isLoopbackOrigin } from "./cdn.mjs";
+import { cachedOptimizedUrls, swStatus, abortSwPreloads } from "../p2p/sw-client.mjs";
+import { holderCount, canSeed } from "../p2p/swarm.mjs";
 import { skipByName } from "../media/formats.mjs";
 import { collectDocumentReferences } from "../media/references.mjs";
 
@@ -17,7 +17,7 @@ import { collectDocumentReferences } from "../media/references.mjs";
  * what was already warmed in this session. A client asks for the next batch when its network is idle; the GM
  * charges up to BATCH items to the host-upload bucket and returns them; the client warms them (at most
  * PARALLEL at once) with plain fetches into the HTTP cache / Service Worker and reports the batch in one message.
- * A GM on its own machine (local origin) does not warm anything: loopback fetches save nothing.
+ * A GM on the server's own machine (loopback) does not warm anything: loopback fetches save nothing.
  *
  * The queue is automatic: it covers everything players may need, most likely first, and the host-upload budget,
  * P2P and the idle window decide how fast it drains. Marking a scene only moves it to the front.
@@ -45,11 +45,15 @@ const BATCH = 8;
 const PARALLEL = 3;
 const EMPTY_WAIT_MS = 30_000;
 const REBUILD_DEBOUNCE_MS = 1500;
-const ASSIGN_TTL_MS = 120_000;   // coordinated seeding: how long an eligible file stays reserved for its first fetcher
-const RESERVED_WAIT_MS = 2_000;  // only reserved files left: poll again soon, the fetcher announces within ~1 s of finishing
+const ASSIGN_TTL_MS = 120_000;   // how long a file stays reserved for the client fetching it from the host first
+const ASSIGN_DONE_MS = 5_000;    // ...and once that client reported it: it announces the file within ~1 s of finishing
+const RESERVED_WAIT_MS = 2_000;  // only reserved files left: poll again soon
 const MISSING_TTL_MS = 600_000;  // a 4xx answer keeps a file out of every batch this long
 const HTTP_CACHE_MAX_BYTES = 32 * 1_048_576; // below Chrome-on-Windows (~40 MB) and Firefox (50 MB) entry limits
-const FULL_RATIO = 0.8;          // above this share of cacheQuotaMB, ask the GM to skip tier 3
+const FULL_RATIO = 0.8;          // above this share of cacheQuotaMB, ask the GM to skip the last tier
+const PRELOAD_HEADER = "X-Optimal-Foundry-Preload"; // marks a preload for the Service Worker, which strips it
+const SOURCE_HEADER = "X-Optimal-Foundry-Source";   // set by the Service Worker on what it answers: cache | p2p | net
+const EDGE_HIT = /^(HIT|STALE|REVALIDATED)$/i;      // cf-cache-status: the edge answered without downloading from the host
 const PLAN_LIMIT = 60;           // plan entries kept for the dashboard
 const SCENE_KEYS = ["texture", "ring", "hidden", "path", "background", "foreground", "fog", "playlist",
   "playlistSound", "folder", "sort", "active", "animation", "levels", "tiles", "tokens", "notes", "drawings", "walls",
@@ -94,7 +98,8 @@ const queue = {
   viewSignature: "",    // players' viewed scenes at the last build
   built: false,
   haveByUser: new Map(),// userId -> Set<src>
-  assigned: new Map(),  // src -> {userId, at}: coordinated seeding
+  assigned: new Map(),  // src -> {userId, until, share}: the one client fetching it from the host first
+  edge: new Set(),      // behind a CDN: files a client pulled through it in this session, so the edge holds them
   missing: new Map(),   // src -> epoch ms of a 4xx answer
   rebuildTimer: null
 };
@@ -119,7 +124,7 @@ export function initPreload() {
     });
     watchWorld();
     if (isCoordinator()) rebuildQueue();
-    if (!(game.user.isGM && isLocalOrigin())) loop();
+    if (!(game.user.isGM && isLoopbackOrigin())) loop();
   } catch (err) {
     client.disabled = true;
     warn("preload disabled", err);
@@ -128,12 +133,13 @@ export function initPreload() {
 
 /**
  * Dashboard snapshot. On the GM `queueLength` is the whole queue; on players, what is left for them.
- * `running` is false where the warm loop does not run (a GM on a local origin, which still serves the queue).
+ * `running` is false where the warm loop does not run (a GM on the server's own machine, which still serves the
+ * queue). `enabled` is false when the world or this browser (`preloadScope` "off") turned preloading off.
  */
 export function preloadStatus() {
   let enabled = false;
   try {
-    enabled = !!getSetting("preloadEnabled") && !!getSetting("preloadOnThisDevice") && !client.disabled;
+    enabled = deviceOn() && !client.disabled;
   } catch { /* settings not ready */ }
   return {
     enabled,
@@ -221,7 +227,8 @@ function wakeLoop() {
   client.wake?.();
 }
 
-const deviceOn = () => !!getSetting("preloadEnabled") && !!getSetting("preloadOnThisDevice");
+/** The world preloads and this browser takes part (`preloadScope`: "all", "session" without the last tier, "off"). */
+const deviceOn = () => !!getSetting("preloadEnabled") && getSetting("preloadScope") !== "off";
 
 async function loop() {
   client.looping = true;
@@ -270,7 +277,8 @@ async function loop() {
 
 async function requestNext() {
   const payload = client.synced ? {} : { have: haveList() };
-  if (cacheNearlyFull()) payload.full = true;
+  // `full` leaves the last tier out: the cache has little room left, or this browser only preloads for the session.
+  if (cacheNearlyFull() || getSetting("preloadScope") === "session") payload.full = true;
   let res = await askCoordinator(MSG.PRELOAD_NEXT, payload, 10_000);
   if (res?.needHave) res = await askCoordinator(MSG.PRELOAD_NEXT, { ...payload, have: haveList() }, 10_000);
   client.synced = !res?.needHave;
@@ -295,24 +303,21 @@ async function warmBatch(items) {
       const item = items[i];
       results[i] = deviceOn()
         ? await warmItem(item)
-        : { src: String(item.src), bytes: 0, est: estOf(item), ok: false, aborted: true };
+        : { src: String(item.src), bytes: 0, ok: false, aborted: true };
     }
   };
   await Promise.all(Array.from({ length: Math.min(PARALLEL, items.length) }, worker));
   return results;
 }
 
-const estOf = item => (Number(item.bytes) > 0 ? Number(item.bytes) : EST_BYTES);
-
-/** @returns {Promise<{src, bytes, est, ok, aborted?, reason?}>} */
+/** @returns {Promise<{src, bytes, ok, aborted?, reason?}>}  `bytes`: what the host uploaded for the file (see warm) */
 async function warmItem(item) {
   const src = String(item.src);
   const url = new URL(foundry.utils.getRoute(src), window.location.origin).href;
-  const est = estOf(item);
-  // The SW stores optimized files in Cache Storage; everything else lands in the HTTP cache, which drops big entries.
-  const viaSw = isOptimizedPath(src) && !!globalThis.navigator?.serviceWorker?.controller;
+  // The Service Worker keeps every media file it serves in Cache Storage, whatever its size; without it the file
+  // lands in the HTTP cache, which drops big entries.
   const limit = effectiveNetwork().preloadMaxBytes;
-  const maxBytes = viaSw ? limit : Math.min(limit, HTTP_CACHE_MAX_BYTES);
+  const maxBytes = swStatus().controlling ? limit : Math.min(limit, HTTP_CACHE_MAX_BYTES);
   let progress = null;
   client.active.add(src);
   try {
@@ -320,52 +325,73 @@ async function warmItem(item) {
       { priority: "preload", url });
     if (r.ok || r.reason === "tooLarge") remember(src);
     if (!r.ok && r.reason !== "tooLarge") log(`preload skipped ${src}: ${r.reason}`);
-    return { src, bytes: r.ok ? transferredBytes(url, r.bytes) : r.bytes, est, ok: r.ok, reason: r.reason };
+    return { src, bytes: r.bytes, ok: r.ok, reason: r.reason };
   } catch (err) {
     const aborted = err?.name === "AbortError";
     if (!aborted) warn(`preload of ${src} failed`, err?.message ?? err);
-    return { src, bytes: progress?.received ?? 0, est, ok: false, aborted, reason: aborted ? undefined : "error" };
+    const bytes = progress?.offHost ? 0 : (progress?.received ?? 0);
+    return { src, bytes, ok: false, aborted, reason: aborted ? undefined : "error" };
   } finally {
     client.active.delete(src);
   }
 }
 
-/** Fetch and drain the body so the HTTP cache and the Service Worker keep the whole file. */
-async function warm(url, signal, maxBytes, progress) {
-  const res = await fetch(url, { signal, credentials: "same-origin", priority: "low" });
+/**
+ * Fetch and drain the body so the HTTP cache and the Service Worker keep the whole file. The request carries
+ * PRELOAD_HEADER, which lets the Service Worker fetch it at low priority and abort it when the game needs the link.
+ * `bytes` is what the host uploaded for the file as far as this page can tell: nothing when the Service Worker
+ * answered from its cache or from a peer (SOURCE_HEADER), or when the CDN's edge already held it.
+ * Exported for the tests.
+ * @param {string} url
+ * @param {AbortSignal} [signal]
+ * @param {number} [maxBytes]  larger files are not kept: `{ok: false, reason: "tooLarge"}`
+ * @param {{total: number, received: number, offHost?: boolean}} [progress]  updated while the body arrives
+ * @returns {Promise<{ok: boolean, bytes: number, reason?: string}>}
+ */
+export async function warm(url, signal, maxBytes, progress) {
+  const res = await fetch(url, { signal, credentials: "same-origin", priority: "low", headers: { [PRELOAD_HEADER]: "1" } });
   if (!res.ok) {
     res.body?.cancel().catch(() => {});
     // Overload (tunnel 429/5xx) is transient: report an error so the file is offered again later.
     if (res.status === 429 || res.status >= 500) throw new Error(`HTTP ${res.status} for ${url}`);
     return { ok: false, bytes: 0, reason: `HTTP ${res.status}` };
   }
+  const source = res.headers.get(SOURCE_HEADER);
+  const offHost = source === "cache" || source === "p2p" || EDGE_HIT.test(res.headers.get("cf-cache-status") ?? "");
+  if (progress) progress.offHost = offHost;
   const declared = Number(res.headers.get("content-length"));
   if (Number.isFinite(maxBytes) && declared > maxBytes) {
-    res.body?.cancel().catch(() => {});
+    discard(res.body, url);
     return { ok: false, bytes: 0, reason: "tooLarge" };
   }
   if (progress && declared > 0) progress.total = declared;
-  if (!res.body) {
-    const buf = await res.arrayBuffer();
-    return { ok: true, bytes: buf.byteLength };
-  }
-  const reader = res.body.getReader();
   let bytes = 0;
-  try {
-    for (;;) {
-      const { done, value } = await reader.read();
-      if (done) break;
-      bytes += value.byteLength;
-      if (progress) progress.received = bytes;
-      if (Number.isFinite(maxBytes) && bytes > maxBytes) {
-        await reader.cancel().catch(() => {});
-        return { ok: false, bytes, reason: "tooLarge" };
+  if (!res.body) bytes = (await res.arrayBuffer()).byteLength;
+  else {
+    const reader = res.body.getReader();
+    try {
+      for (;;) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        bytes += value.byteLength;
+        if (progress) progress.received = bytes;
+        if (Number.isFinite(maxBytes) && bytes > maxBytes) {
+          await discard(reader, url);
+          return { ok: false, bytes: offHost ? 0 : bytes, reason: "tooLarge" };
+        }
       }
+    } finally {
+      reader.releaseLock?.();
     }
-  } finally {
-    reader.releaseLock?.();
   }
-  return { ok: true, bytes };
+  // The Service Worker says where its answer came from; without one, Resource Timing knows what the network moved.
+  return { ok: true, bytes: offHost ? 0 : source ? bytes : transferredBytes(url, bytes) };
+}
+
+/** Stop reading a file that will not be kept, and the Service Worker's own download of it. */
+function discard(stream, url) {
+  try { abortSwPreloads([url]); } catch { /* no worker to tell */ }
+  return stream?.cancel().catch(() => {});
 }
 
 /** Network bytes actually moved (0-ish for cache revalidations), from Resource Timing when available. */
@@ -449,28 +475,41 @@ function gmNext({ have, full }, from) {
   if (!enabled || !n) return { items: [], waitMs: 60_000, total: 0, done: 0 };
 
   const t = Date.now();
-  // Coordinated seeding: without a CDN, let one client fetch each P2P-eligible file from the host; the others
-  // get it from that client through the swarm once it announces the file.
-  const coordinate = !!n.p2p && n.profile !== "cdn";
-  const minP2P = coordinate ? (Number(getSetting("p2pMinFileKB")) || 0) * 1024 : 0;
+  // Who uploads each file (see chargeBatch), for a requester whose downloads cross the host's uplink.
+  // Behind a CDN the first handout of a file fills the edge from the host: one client gets it, charged, and once it
+  // reports the file the edge serves everyone else for free. Only a browser on the public hostname goes through
+  // the edge; one on a private address is charged for everything and fills nothing.
+  // Without a CDN, with sharing on, one client that can share fetches each eligible file from the host and the
+  // other sharers take it from that client through the swarm. A browser that cannot share right now (no local
+  // cache, opted out, plain HTTP) neither holds such a reservation nor waits on one.
+  const origin = clientOrigin(from);
+  const fill = origin === "public" && n.profile === "cdn";
+  const sharer = origin !== "loopback" && !!n.p2p && canSeed(from);
+  const minP2P = sharer ? (Number(getSetting("p2pMinFileKB")) || 0) * 1024 : 0;
   const picked = [];
-  let firstSkipped = null, done = 0, total = 0;
+  let waiting = false, done = 0, total = 0;
   for (const it of queue.items) {
-    if (full && it.tier >= 3) continue;
+    if (full && it.tier >= LATER_TIER) continue;
     if (t - (queue.missing.get(it.src) ?? -Infinity) < MISSING_TTL_MS) continue;
     total++;
     if (set.has(it.src)) { done++; continue; }
     if (picked.length >= BATCH) continue;
-    if (coordinate && reservedElsewhere(it, from, t, minP2P)) { firstSkipped ??= it; continue; }
-    picked.push(it);
+    const first = fill || (sharer && p2pEligible(it, minP2P)); // one client fetches it from the host first
+    let source = "host";
+    if (fill && queue.edge.has(it.src)) source = "edge";
+    else if (first && !fill && holderCount(it.src, from) > 0) source = "peer";
+    else if (first && reservedElsewhere(it.src, from, t)) { waiting = true; continue; }
+    picked.push({ src: it.src, bytes: it.bytes, tier: it.tier, kind: it.kind, source, reserve: first && source === "host" });
   }
-  // Only files another client is fetching from the host are left: wait for its announcement and take them from it.
-  // A reservation cannot starve anyone: it ends on TTL, when the fetcher leaves, or when its fetch fails (gmDone).
-  if (!picked.length && firstSkipped) return { items: [], waitMs: RESERVED_WAIT_MS, total, done };
-  if (!picked.length) return { items: [], waitMs: EMPTY_WAIT_MS, total, done };
+  // Only files another client is fetching from the host are left: ask again soon and take them from the edge or
+  // from that client. A reservation cannot starve anyone: it ends on its TTL, when the fetcher leaves or can no
+  // longer share, when its fetch fails, and a few seconds after it succeeds (gmDone).
+  if (!picked.length) return { items: [], waitMs: waiting ? RESERVED_WAIT_MS : EMPTY_WAIT_MS, total, done };
 
   const charged = chargeBatch(picked, from);
-  if (coordinate) for (const it of charged.items) if (p2pEligible(it, minP2P)) queue.assigned.set(it.src, { userId: from, at: t });
+  for (const it of charged.items) {
+    if (it.reserve) queue.assigned.set(it.src, { userId: from, until: t + ASSIGN_TTL_MS, share: !fill });
+  }
   return {
     items: charged.items.map(it => ({ src: it.src, bytes: it.bytes, tier: it.tier, kind: it.kind })),
     waitMs: charged.waitMs,
@@ -485,35 +524,48 @@ function p2pEligible(it, minBytes) {
   return !!e?.sha256 && (Number(e.bytes) || 0) >= minBytes;
 }
 
-/** True when another user fetches this eligible file right now and no one but the GM holds it yet. */
-function reservedElsewhere(it, from, t, minBytes) {
-  const a = queue.assigned.get(it.src);
+/** True while another connected user holds the reservation for this file (and, for sharing, can still share). */
+function reservedElsewhere(src, from, t) {
+  const a = queue.assigned.get(src);
   if (!a) return false;
-  if (t - a.at >= ASSIGN_TTL_MS || !game.users.get(a.userId)?.active) { queue.assigned.delete(it.src); return false; }
-  if (a.userId === from || !p2pEligible(it, minBytes)) return false;
-  return holderCount(it.src, game.user.id) === 0;
+  if (t >= a.until || !game.users.get(a.userId)?.active || (a.share && !canSeed(a.userId))) {
+    queue.assigned.delete(src);
+    return false;
+  }
+  return a.userId !== from;
 }
 
 function gmDone({ results }, from) {
   if (!game.users.get(from) || !Array.isArray(results)) return;
   const set = queue.haveByUser.get(from);
   if (!set) return; // coordinator changed mid-batch: the next PRELOAD_NEXT gets needHave and resyncs the full list
-  let delta = 0;
+  const t = Date.now();
+  const settled = [];
   for (const r of results.slice(0, BATCH)) {
     if (!r || typeof r.src !== "string") continue;
     const src = normalizePath(r.src);
     if (r.ok || r.reason === "tooLarge") {
       set.delete(src);
       set.add(src);
-    } else {
-      if (/^HTTP 4/.test(String(r.reason ?? ""))) queue.missing.set(src, Date.now());
-      if (queue.assigned.get(src)?.userId === from) queue.assigned.delete(src);
+    } else if (/^HTTP 4/.test(String(r.reason ?? ""))) queue.missing.set(src, t);
+    const a = queue.assigned.get(src);
+    if (a?.userId === from) {
+      // Not fetched (failed, aborted, too large): the next client that asks fetches it from the host.
+      if (!r.ok) queue.assigned.delete(src);
+      // Fetched by a sharer: it announces the file within about a second, then the others take it from there.
+      else if (a.share) a.until = Math.min(a.until, t + ASSIGN_DONE_MS);
+      // Fetched through the CDN: the edge holds it now.
+      else {
+        queue.assigned.delete(src);
+        queue.edge.add(src);
+      }
     }
-    // Charged with the estimate; settle with what actually moved (aborted items are refunded down to their partial bytes).
-    delta += (Number(r.bytes) || 0) - (Number(r.est) || 0);
+    settled.push({ src, bytes: r.bytes });
   }
   while (set.size > HAVE_MAX) set.delete(set.values().next().value);
-  adjustBudget(delta, from);
+  while (queue.edge.size > HAVE_MAX) queue.edge.delete(queue.edge.values().next().value);
+  // Charged at handout with the coordinator's own estimate; settled with what the host really uploaded.
+  settleBatch(settled, from);
 }
 
 function watchWorld() {
@@ -544,7 +596,7 @@ function watchWorld() {
   setInterval(() => { if (isCoordinator() && (viewSignature() !== queue.viewSignature)) queueRebuild(); }, VIEW_CHECK_MS);
   Hooks.on(`${MODULE_ID}.settingChanged`, key => {
     if (WATCHED_SETTINGS.has(key)) queueRebuild();
-    if (key === "preloadOnThisDevice" || key === "preloadEnabled" || key === "nextScenes") wakeLoop();
+    if (key === "preloadScope" || key === "preloadEnabled" || key === "nextScenes") wakeLoop();
   });
   Hooks.on(`${MODULE_ID}.coordinatorChanged`, now => { if (now) queueRebuild(); });
   // Every conversion writes the library: rebuild at most every LIBRARY_REBUILD_MS for those.

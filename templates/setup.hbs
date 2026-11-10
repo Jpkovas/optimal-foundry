@@ -1,0 +1,15 @@
+{{!-- The "finish setup" step of the local cache, as a partial. Context: describeSetup() in scripts/ui/common.mjs. --}}
+<div class="of-setup" role="status">
+    <strong class="of-setup-title"><i class="fa-solid fa-triangle-exclamation" inert></i> {{localize "OPTIMALFOUNDRY.Setup.Title"}}</strong>
+    <div class="of-note-row">
+        <p>{{missing}} {{localize "OPTIMALFOUNDRY.Setup.How"}}</p>
+        <button type="button" data-action="recheckSw"><i class="fa-solid fa-rotate" inert></i> {{localize "OPTIMALFOUNDRY.Setup.Check"}}</button>
+    </div>
+    <details data-sync="of-setup-where">
+        <summary>{{localize "OPTIMALFOUNDRY.Setup.Where"}}</summary>
+        <dl class="of-kv">
+            {{#each folders}}<dt>{{os}}</dt><dd><code>{{path}}</code></dd>{{/each}}
+        </dl>
+        <p class="of-muted">{{localize "OPTIMALFOUNDRY.Setup.WhereNote"}}</p>
+    </details>
+</div>

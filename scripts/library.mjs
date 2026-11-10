@@ -2,10 +2,12 @@ import { MODULE_ID } from "./constants.mjs";
 import { getSetting, setSetting } from "./settings.mjs";
 
 /**
- * The optimization library: one entry per ORIGINAL path, stored in the `library` world setting.
+ * The optimization library: one entry per ORIGINAL path, stored in the `library` world setting as a map keyed by that
+ * path. The key is the original, so the stored entries do not repeat it: every reader gets it filled in as
+ * `entry.original` (entries written by older versions still carry the field; it is ignored).
  *
  * @typedef {object} LibraryEntry
- * @property {string} original        Original path as referenced by documents (decoded, no leading slash)
+ * @property {string} original        Original path as referenced by documents (decoded, no leading slash). Never stored.
  * @property {string|null} optimized  Optimized path. Kept on `skipped`/`restored` entries for a cheap re-optimize;
  *                                    only `done` entries are live mappings.
  * @property {"image"|"video"|"audio"} kind
@@ -39,33 +41,48 @@ let chain = Promise.resolve();
 /** Every write of this client runs here, one after another, and reads the library inside the chain. */
 const serial = fn => (chain = chain.then(fn, fn));
 
+/** The setting as stored: entries without `original`. */
 const persisted = () => getSetting("library") ?? {};
 
-function apply(lib, op, key) {
+/** A stored entry as readers see it: its key filled in as `original`. */
+const withKey = (key, entry) => (entry ? { ...entry, original: key } : null);
+
+/** Apply a write. `filled` is for the readers' view, where every entry carries its key as `original`. */
+function apply(lib, op, key, filled = false) {
+  const merge = (k, v) => { lib[k] = filled ? { ...(lib[k] ?? {}), ...v, original: k } : { ...(lib[k] ?? {}), ...v }; };
   if (op.put) {
-    if (key !== undefined) { if (op.put.has(key)) lib[key] = { ...(lib[key] ?? {}), ...op.put.get(key) }; }
-    else for (const [k, v] of op.put) lib[k] = { ...(lib[k] ?? {}), ...v };
+    if (key !== undefined) { if (op.put.has(key)) merge(key, op.put.get(key)); }
+    else for (const [k, v] of op.put) merge(k, v);
   } else if (key !== undefined) { if (op.remove.has(key)) delete lib[key]; }
   else for (const k of op.remove) delete lib[k];
 }
 
 /** The library as this client will persist it: stored value, then pending writes, then the open batch. */
 export function getLibrary() {
-  if (!ops.length && !queue.size) return persisted();
-  const lib = { ...persisted() };
-  for (const op of ops) apply(lib, op);
-  apply(lib, { put: queue });
+  const lib = {};
+  for (const [key, entry] of Object.entries(persisted())) lib[key] = withKey(key, entry);
+  for (const op of ops) apply(lib, op, undefined, true);
+  apply(lib, { put: queue }, undefined, true);
   return lib;
 }
 
 export function getEntry(original) {
   const key = normalizePath(original);
-  if (!ops.length && !queue.size) return persisted()[key] ?? null;
-  const lib = { [key]: persisted()[key] };
-  if (!lib[key]) delete lib[key];
-  for (const op of ops) apply(lib, op, key);
-  apply(lib, { put: queue }, key);
+  const lib = {};
+  const entry = persisted()[key];
+  if (entry) lib[key] = withKey(key, entry);
+  for (const op of ops) apply(lib, op, key, true);
+  apply(lib, { put: queue }, key, true);
   return lib[key] ?? null;
+}
+
+/**
+ * The entry as the server holds it, without this client's pending writes: what a crash or a reload would leave.
+ * The background optimizer re-points a document only to a copy whose `done` entry is here.
+ */
+export function getStoredEntry(original) {
+  const key = normalizePath(original);
+  return withKey(key, persisted()[key]);
 }
 
 export const findByOptimized = path => byOptimized.get(normalizePath(path)) ?? null;
@@ -106,9 +123,9 @@ export function indexLibrary() {
  */
 export function putEntries(entries, { now = false } = {}) {
   if (!game.user.isGM) return Promise.reject(new Error("Only a GM can write the library"));
-  for (const e of [].concat(entries)) {
-    const key = normalizePath(e.original);
-    queue.set(key, { ...(queue.get(key) ?? {}), ...e, original: key, at: Date.now() });
+  for (const { original, ...fields } of [].concat(entries)) {
+    const key = normalizePath(original);
+    queue.set(key, { ...(queue.get(key) ?? {}), ...fields, at: Date.now() });
   }
   const done = new Promise((resolve, reject) => waiters.push({ resolve, reject }));
   if (now) flush();

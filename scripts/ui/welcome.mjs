@@ -1,6 +1,8 @@
 import { MODULE_ID, warn } from "../constants.mjs";
 import { getSetting, setSetting, settingDef, PRESETS, RELOAD_KEYS, matchPreset } from "../settings.mjs";
-import { TEMPLATE, L, setting } from "./common.mjs";
+import { swStatus } from "../p2p/sw-client.mjs";
+import { conversionBlocker } from "../media/converter.mjs";
+import { TEMPLATE, L, call, setting, describeSetup, recheckSetup, blockerNote } from "./common.mjs";
 import { setTrackerVisible } from "./tracker.mjs";
 
 const { ApplicationV2, HandlebarsApplicationMixin } = foundry.applications.api;
@@ -17,11 +19,16 @@ const SWITCHES = [
   { key: "preloadEnabled", icon: "fa-solid fa-forward" },
   { key: "p2pEnabled", icon: "fa-solid fa-share-nodes" }
 ];
+/** How often the open window looks at the local cache again: its registration ends seconds after `ready`. */
+const SETUP_WATCH_MS = 2000;
 
 /**
  * Shown to a GM the first time they enter the world with the module on (until a GM finishes it): pick a preset,
  * how existing files are optimized (automatic, after review, or not at all) and which network features run.
  * Nothing converts the world's existing files before this is done; the network features run with their defaults.
+ * Above the choices it says what this browser cannot do on a page without HTTPS, and shows the "finish setup" step
+ * of the local cache while the bridge file is missing from the Data folder. That step is a part of its own, so it
+ * appears or goes away without re-rendering the form (which would reset what the GM picked).
  */
 export class OptimalFoundryWelcome extends HandlebarsApplicationMixin(ApplicationV2) {
   static DEFAULT_OPTIONS = {
@@ -31,13 +38,17 @@ export class OptimalFoundryWelcome extends HandlebarsApplicationMixin(Applicatio
     window: { title: "OPTIMALFOUNDRY.Welcome.Title", icon: "fa-solid fa-hand-sparkles", contentClasses: ["standard-form"] },
     position: { width: 620, height: "auto" },
     form: { handler: OptimalFoundryWelcome.#onSubmit, closeOnSubmit: true },
-    actions: { later: OptimalFoundryWelcome.#onLater }
+    actions: { later: OptimalFoundryWelcome.#onLater, recheckSw: OptimalFoundryWelcome.#onRecheck }
   };
 
   static PARTS = {
+    setup: { template: TEMPLATE("setup-slot"), templates: [TEMPLATE("setup")] },
     form: { template: TEMPLATE("welcome"), scrollable: [""] },
     footer: { template: "templates/generic/form-footer.hbs" }
   };
+
+  /** What the setup part shows now ("", "missing" or "stale"), to re-render it only when that changes. */
+  #setupShown = "";
 
   /** @override */
   _canRender(options) {
@@ -51,17 +62,22 @@ export class OptimalFoundryWelcome extends HandlebarsApplicationMixin(Applicatio
     // Tuned by hand (no preset matches): nothing is preselected, and leaving it so keeps those values.
     const preset = matchPreset(Object.fromEntries(Object.values(PRESETS).flatMap(Object.keys).map(k => [k, getSetting(k)])));
     const mode = getSetting("backfillMode");
+    const setup = describeSetup(swStatus());
+    this.#setupShown = setupState(setup);
     return Object.assign(context, {
+      setup,
+      blocker: blockerNote(await call("conversionBlocker", conversionBlocker)),
       presets: Object.keys(PRESETS).map(id => ({
-        id, icon: PRESET_ICONS[id], checked: id === preset,
+        id, icon: PRESET_ICONS[id], checked: id === preset, line: L(`Welcome.Card.${id}`),
         label: L(`Config.Preset.${id}.Name`), hint: L(`Config.Preset.${id}.Hint`)
       })),
-      modes: MODES.map(m => ({ ...m, checked: m.id === mode, label: L(`Welcome.Mode.${m.id}.Name`), hint: L(`Welcome.Mode.${m.id}.Hint`) })),
+      modes: MODES.map(m => ({ ...m, checked: m.id === mode, line: L(`Welcome.Card.${m.id}`),
+        label: L(`Welcome.Mode.${m.id}.Name`), hint: L(`Welcome.Mode.${m.id}.Hint`) })),
       keepCurrent: preset === "custom",
       switches: [
         ...SWITCHES.map(s => ({ ...s, checked: !!getSetting(s.key), name: `OPTIMALFOUNDRY.Settings.${s.key}.Name`,
-          hint: `OPTIMALFOUNDRY.Welcome.Switch.${s.key}` })),
-        { key: "tracker", icon: "fa-solid fa-gauge-high", checked: !!setting("trackerVisible", true),
+          line: L(`Welcome.Card.${s.key}`), hint: `OPTIMALFOUNDRY.Welcome.Switch.${s.key}` })),
+        { key: "tracker", icon: "fa-solid fa-gauge-high", checked: !!setting("trackerVisible", true), line: L("Welcome.Card.tracker"),
           name: "OPTIMALFOUNDRY.Welcome.TrackerName", hint: "OPTIMALFOUNDRY.Welcome.TrackerHint" }
       ],
       upload: { value: getSetting("hostUploadMbps"), ...settingDef("hostUploadMbps").range },
@@ -92,12 +108,21 @@ export class OptimalFoundryWelcome extends HandlebarsApplicationMixin(Applicatio
     await super._onFirstRender(context, options);
     // Another GM finished it: nothing left to choose here.
     this._hook = Hooks.on(`${MODULE_ID}.settingChanged`, (key, value) => { if ((key === "welcomeDone") && value) this.close(); });
+    this._setupWatch = setInterval(() => {
+      if (this.rendered && (setupState(describeSetup(swStatus())) !== this.#setupShown)) this.render({ parts: ["setup"] });
+    }, SETUP_WATCH_MS);
   }
 
   /** @override */
   _onClose(options) {
     super._onClose(options);
     Hooks.off(`${MODULE_ID}.settingChanged`, this._hook);
+    clearInterval(this._setupWatch);
+  }
+
+  static async #onRecheck(_event, target) {
+    await recheckSetup(target);
+    if (this.rendered) this.render({ parts: ["setup"] });
   }
 
   static #onLater() {
@@ -137,7 +162,14 @@ export function registerWelcome() {
   });
 }
 
+/** `describeSetup()` reduced to what the setup part shows. */
+const setupState = setup => !setup ? "" : (setup.stale ? "stale" : "missing");
+
+/** Open the welcome screen. An open one only comes to the front: rendering it again would reset what the GM picked. */
 export function openWelcome() {
   const open = foundry.applications.instances.get(OptimalFoundryWelcome.DEFAULT_OPTIONS.id);
-  return (open ?? new OptimalFoundryWelcome()).render({ force: true });
+  if (!open?.rendered) return new OptimalFoundryWelcome().render({ force: true });
+  if (open.minimized) open.maximize();
+  open.bringToFront();
+  return open;
 }

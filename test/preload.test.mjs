@@ -5,7 +5,7 @@ import assert from "node:assert/strict";
  * The automatic preload plan (buildQueue) on a small fake world: no scene marked, yet everything players may need
  * is queued, most likely first, with the reason for each scene or group.
  */
-let buildQueue;
+let buildQueue, warm, preloadStatus;
 const settings = { nextScenes: [], preloadInclude: [], preloadExclude: [], mediaEnabled: false, backfillMode: "off", library: {} };
 
 const coll = (list, extra = {}) => Object.assign(list, { get: id => list.find(d => d.id === id) ?? null, contents: list }, extra);
@@ -64,7 +64,7 @@ before(async () => {
     journal: coll([]),
     settings: { get: (_ns, key) => settings[key] }
   };
-  ({ buildQueue } = await import("../scripts/net/preload.mjs"));
+  ({ buildQueue, warm, preloadStatus } = await import("../scripts/net/preload.mjs"));
 });
 
 test("preload: the automatic plan covers the world, most likely first, with no scene marked", () => {
@@ -116,4 +116,65 @@ test("preload: a marked scene goes first, even when excluded", () => {
   assert.deepEqual(plan[0], { ...plan[0], name: "hidden", tier: 0, reason: "marked" });
   assert.equal(items[0].src, "maps/hidden.webp");
   settings.nextScenes = [];
+});
+
+/** One fake answer for the next fetch; records what was asked. */
+function answer(status, headers = {}, bytes = 0) {
+  const seen = {};
+  globalThis.fetch = async (url, init) => {
+    Object.assign(seen, { url, init });
+    return new Response(status === 200 ? new Uint8Array(bytes) : null, { status, headers });
+  };
+  return seen;
+}
+const URL_A = "https://play.example.com/maps/a.of-0123abcd.webp";
+
+test("preload: a warm-up request is marked for the Service Worker and asks for low priority", async () => {
+  const seen = answer(200, {}, 10);
+  await warm(URL_A);
+  assert.equal(seen.url, URL_A);
+  assert.equal(seen.init.headers["X-Optimal-Foundry-Preload"], "1");
+  assert.equal(seen.init.priority, "low");
+});
+
+test("preload: only what the host uploaded is reported", async () => {
+  const bytes = async headers => { answer(200, headers, 1234); return (await warm(URL_A)).bytes; };
+  // The Service Worker names where its answer came from.
+  assert.equal(await bytes({ "X-Optimal-Foundry-Source": "cache" }), 0);
+  assert.equal(await bytes({ "X-Optimal-Foundry-Source": "p2p" }), 0);
+  assert.equal(await bytes({ "X-Optimal-Foundry-Source": "net" }), 1234);
+  // Behind a CDN, an edge that already held the file spared the host too.
+  assert.equal(await bytes({ "X-Optimal-Foundry-Source": "net", "cf-cache-status": "HIT" }), 0);
+  assert.equal(await bytes({ "cf-cache-status": "HIT" }), 0);
+  assert.equal(await bytes({ "cf-cache-status": "MISS" }), 1234, "an edge miss is an upload from the host");
+  assert.equal(await bytes({}), 1234, "no worker, no CDN: the network moved it");
+});
+
+test("preload: progress says how far the download is and whether the host is paying", async () => {
+  answer(200, { "content-length": "1234", "X-Optimal-Foundry-Source": "p2p" }, 1234);
+  const progress = { total: 0, received: 0 };
+  assert.deepEqual(await warm(URL_A, undefined, 5000, progress), { ok: true, bytes: 0 });
+  assert.deepEqual(progress, { total: 1234, received: 1234, offHost: true });
+});
+
+test("preload: files over the limit, missing files and overload", async () => {
+  answer(200, { "content-length": "5000" }, 5000);
+  assert.deepEqual(await warm(URL_A, undefined, 1000), { ok: false, bytes: 0, reason: "tooLarge" });
+  answer(200, {}, 5000); // no declared length: found out while reading
+  assert.deepEqual(await warm(URL_A, undefined, 1000), { ok: false, bytes: 5000, reason: "tooLarge" });
+  answer(404);
+  assert.deepEqual(await warm(URL_A), { ok: false, bytes: 0, reason: "HTTP 404" });
+  answer(503);
+  await assert.rejects(warm(URL_A), /HTTP 503/, "transient: reported as an error, offered again later");
+});
+
+test("preload: this browser's preloadScope turns its preloading off", () => {
+  settings.preloadEnabled = true;
+  for (const [scope, enabled] of [["all", true], ["session", true], ["off", false]]) {
+    settings.preloadScope = scope;
+    assert.equal(preloadStatus().enabled, enabled, scope);
+  }
+  settings.preloadEnabled = false;
+  settings.preloadScope = "all";
+  assert.equal(preloadStatus().enabled, false, "the world's switch still wins");
 });

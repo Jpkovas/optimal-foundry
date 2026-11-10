@@ -25,10 +25,23 @@ let delegated = false;
 /** Players whose status reported a remote origin and a ready scene: their handlers exist and they see the edge. */
 const remoteReady = new Set();
 
-/** True when the page origin cannot be behind a public CDN (loopback, private LAN, link-local, CGNAT, mDNS). */
+/**
+ * True when the page is served by this very machine (localhost, 127.0.0.0/8, ::1). Only then does a download cost
+ * the host no upload: a private address may be a LAN, but just as well a VPN (Tailscale, ZeroTier) across the
+ * host's uplink, so the budget charges those like any remote client.
+ */
+export function isLoopbackOrigin(hostname = window.location.hostname) {
+  const h = String(hostname).toLowerCase().replace(/^\[|\]$/g, "");
+  return h === "localhost" || h.endsWith(".localhost") || h === "::1" || /^127(\.\d{1,3}){3}$/.test(h);
+}
+
+/**
+ * True when the page origin cannot be behind a public CDN (loopback, private LAN, link-local, CGNAT, mDNS).
+ * For the CDN probe only; what a client costs the host is `isLoopbackOrigin`.
+ */
 export function isLocalOrigin(hostname = window.location.hostname) {
   const h = String(hostname).toLowerCase().replace(/^\[|\]$/g, "");
-  if (!h || h === "localhost" || h.endsWith(".localhost") || h === "0.0.0.0" || h === "::" || h === "::1") return true;
+  if (!h || isLoopbackOrigin(h) || h === "0.0.0.0" || h === "::") return true;
   if (/\.(local|lan|home\.arpa|internal)$/.test(h) || (!h.includes(".") && !h.includes(":"))) return true;
   const v4 = h.match(/^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/);
   if (v4) {
@@ -98,7 +111,7 @@ async function probeUrl(path) {
     try { second = await probeRequest(url, method); } catch { /* keep the first answer */ }
     const raw = second.headers.get("cf-cache-status") ?? first.headers.get("cf-cache-status");
     const status = raw ? raw.trim().toUpperCase() : "none";
-    return { cdn: CACHING.has(status), status, url: path };
+    return { cdn: CACHING.has(status), status, url: path, cloudflare: !!raw };
   }
   return null;
 }
@@ -117,16 +130,25 @@ async function runProbe() {
 /** Store a result. Unchanged results are rewritten at most hourly, unless `force` (a manual re-detection). */
 async function store(result, force = false) {
   const prev = getSetting("cdnStatus") ?? {};
-  const changed = prev.cdn !== result.cdn || prev.status !== result.status || prev.origin !== result.origin;
+  const changed = prev.cdn !== result.cdn || prev.status !== result.status || prev.origin !== result.origin
+    || !!prev.cloudflare !== !!result.cloudflare;
   if (!changed && !force && Date.now() - (prev.checkedAt ?? 0) < REWRITE_AFTER_MS) return;
   await setSetting("cdnStatus", result);
-  if (changed) {
-    log("CDN status", result);
-    if (prev.status !== undefined && result.status !== "local") {
-      const key = result.cdn ? "OPTIMALFOUNDRY.Cdn.Found" : "OPTIMALFOUNDRY.Cdn.NotFound";
-      ui.notifications?.info(game.i18n.format(key, { status: result.status }));
-    }
-  }
+  if (!changed) return;
+  log("CDN status", result);
+  // Tell the GM only when a CDN is found or lost. A quick tunnel gets a new hostname at every restart and the
+  // header value varies between probes; neither is news. "local" only means this browser cannot see the edge.
+  if (prev.status === undefined || result.status === "local" || !!prev.cdn === !!result.cdn) return;
+  const key = result.cdn ? "OPTIMALFOUNDRY.Cdn.Found" : "OPTIMALFOUNDRY.Cdn.NotFound";
+  ui.notifications?.info(game.i18n.format(key, { status: result.status }));
+}
+
+/**
+ * True when the last CDN probe saw a `cf-cache-status` header: the world is reached through Cloudflare (a tunnel
+ * or a proxied domain), cached or not. False before the first probe and on any other kind of host.
+ */
+export function behindCloudflare() {
+  try { return !!getSetting("cdnStatus")?.cloudflare; } catch { return false; }
 }
 
 /**
@@ -152,8 +174,8 @@ async function delegateTo(user, force = false) {
     const r = await request(PROBE_MSG, {}, user.id, PROBE_TIMEOUT_MS * 4);
     if (!r || typeof r !== "object" || ["local", "error", "noProbe"].includes(r.status)) return false;
     delegated = true;
-    await store({ cdn: !!r.cdn, status: String(r.status), url: r.url, origin: String(r.origin ?? ""), by: user.name,
-      checkedAt: Date.now() }, force);
+    await store({ cdn: !!r.cdn, status: String(r.status), url: r.url, cloudflare: !!r.cloudflare,
+      origin: String(r.origin ?? ""), by: user.name, checkedAt: Date.now() }, force);
     return true;
   } catch (err) {
     warn(`CDN probe delegated to ${user.name} failed`, err?.message ?? err);
@@ -167,10 +189,10 @@ const firstPlayer = () => game.users.find(u => u.active && remoteReady.has(u.id)
 function hookDelegation() {
   if (delegationHooked) return;
   delegationHooked = true;
-  // Delegate on a player's first ready status from a remote origin, not on a timer after userConnected: a player
+  // Delegate on a player's first ready status from a public origin, not on a timer after userConnected: a player
   // behind a tunnel can take longer than any fixed delay to load, and a local-origin player cannot see the edge.
   on(MSG.CLIENT_STATUS, (payload, from) => {
-    if (!payload || payload.local !== false || !payload.sceneReady || remoteReady.has(from)) return;
+    if (!payload || payload.publicOrigin !== true || !payload.sceneReady || remoteReady.has(from)) return;
     remoteReady.add(from);
     delegateTo(game.users.get(from));
   });
@@ -178,8 +200,8 @@ function hookDelegation() {
 }
 
 /**
- * GM: detect a caching CDN in front of this world and store `{cdn, status, checkedAt, origin, url, by?}` in the
- * `cdnStatus` setting. Never throws.
+ * GM: detect a caching CDN in front of this world and store `{cdn, status, cloudflare, checkedAt, origin, url, by?}`
+ * in the `cdnStatus` setting. Never throws.
  * `force` (the dashboard button): on a local origin, ask a connected player to probe again now and never store
  * "local"; the stored result stays as it is when no player is online or the probe fails (the GM is notified).
  */

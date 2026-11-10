@@ -11,6 +11,7 @@
             <input type="radio" name="preset" value="{{id}}" {{#if checked}}checked{{/if}}>
             <i class="{{icon}}" inert></i>
             <strong>{{label}}</strong>
+            <span>{{line}}</span>
         </label>
         {{/each}}
     </div>
@@ -24,6 +25,7 @@
             <input type="radio" name="backfillMode" value="{{id}}" {{#if checked}}checked{{/if}}>
             <i class="{{icon}}" inert></i>
             <strong>{{label}}</strong>
+            <span>{{line}}</span>
         </label>
         {{/each}}
     </div>
@@ -33,7 +35,7 @@
         {{#each switches}}
         <label class="of-switch" {{#if media}}data-of-media{{/if}} data-tooltip="{{localize hint}}">
             <i class="{{icon}}" inert></i>
-            <span>{{localize name}}</span>
+            <span>{{localize name}}<small>{{line}}</small></span>
             <input type="checkbox" name="{{key}}" {{#if checked}}checked{{/if}}>
         </label>
         {{/each}}

@@ -49,22 +49,25 @@ export function optimizedName(originalName, sha256Hex, ext) {
 }
 
 /**
- * Where the optimized copy of an original goes. Same folder, except originals inside modules/, systems/,
- * Foundry's core public folders or another origin, which are mirrored under `optimal-foundry/<original dir>/`
- * at the Data root (module/system updates would wipe files written there).
+ * Where the optimized copy of an original goes. Same folder, except originals in places the module cannot or should
+ * not write to (modules/, systems/, Foundry's core public folders, another host): those are mirrored under
+ * `worlds/<this world>/optimal-foundry/<original dir>/`. Inside the world folder, so a backup or a copy of the world
+ * carries its optimized copies along (module and system updates wipe their own folders, and Foundry's backups only
+ * archive package folders).
  * @returns {{source: "data", dir: string, mirrored: boolean}}
  */
 export function outputLocation(originalPath) {
   const p = normalizePath(originalPath);
+  const mirror = `worlds/${game.world.id}/${MIRROR_ROOT}`;
   if (isUrl(p)) {
     let host = "external", dir = "";
     try { const u = new URL(p); host = u.hostname || host; dir = dirName(decodeURIComponent(u.pathname)).replace(/^\/+/, ""); } catch {}
-    return { source: "data", dir: [MIRROR_ROOT, host, dir].filter(Boolean).join("/"), mirrored: true };
+    return { source: "data", dir: [mirror, host, dir].filter(Boolean).join("/"), mirrored: true };
   }
   const dir = dirName(p);
   const top = p.split("/")[0];
   if (READ_ONLY_ROOTS.has(top) || CORE_PUBLIC_ROOTS.has(top)) {
-    return { source: "data", dir: [MIRROR_ROOT, dir].filter(Boolean).join("/"), mirrored: true };
+    return { source: "data", dir: [mirror, dir].filter(Boolean).join("/"), mirrored: true };
   }
   return { source: "data", dir, mirrored: false };
 }

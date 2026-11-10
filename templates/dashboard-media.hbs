@@ -6,6 +6,7 @@
     {{#unless isCoordinator}}
     <p class="of-note">{{localize "OPTIMALFOUNDRY.Dashboard.Media.NotCoordinator"}}</p>
     {{/unless}}
+    {{#if blocker}}<p class="of-note warn"><i class="fa-solid fa-lock-open" inert></i> {{blocker}}</p>{{/if}}
     {{#if mode}}
     <p class="of-modeline">
         <span class="of-chip {{mode.cls}}" data-tooltip="{{mode.hint}}"><i class="{{mode.icon}}" inert></i> {{mode.label}}</span>
@@ -21,7 +22,7 @@
     <table class="of-table of-review">
         <thead>
             <tr>
-                <th class="of-pick"><input type="checkbox" data-of-review-all {{#if review.allSelected}}checked{{/if}} aria-label="{{localize "OPTIMALFOUNDRY.Cleanup.SelectAll"}}"></th>
+                <th class="of-pick"><input type="checkbox" name="of-review-all" data-of-review-all {{#if review.allSelected}}checked{{/if}} aria-label="{{localize "OPTIMALFOUNDRY.Cleanup.SelectAll"}}"></th>
                 <th>{{localize "OPTIMALFOUNDRY.Dashboard.Media.File"}}</th>
                 <th>{{localize "OPTIMALFOUNDRY.Dashboard.Media.Kind"}}</th>
                 <th>{{localize "OPTIMALFOUNDRY.Dashboard.Review.UsedIn"}}</th>
@@ -31,7 +32,7 @@
         <tbody>
             {{#each review.rows}}
             <tr>
-                <td class="of-pick"><input type="checkbox" data-of-review-pick="{{original}}" {{#if selected}}checked{{/if}} aria-label="{{name}}"></td>
+                <td class="of-pick"><input type="checkbox" name="of-review-{{@index}}" data-of-review-pick="{{original}}" {{#if selected}}checked{{/if}} aria-label="{{name}}"></td>
                 <td class="of-file" data-tooltip-text="{{original}}">{{name}}</td>
                 <td>{{kind}}</td>
                 <td class="of-detail"><span class="of-refs">
@@ -40,8 +41,8 @@
                 </span></td>
                 <td class="of-actions">
                     {{#if previewable}}
-                    <a data-action="reviewPreview" data-original="{{original}}" data-tooltip="{{localize "OPTIMALFOUNDRY.Dashboard.Review.Preview"}}"
-                       aria-label="{{localize "OPTIMALFOUNDRY.Dashboard.Review.Preview"}}"><i class="fa-solid fa-eye" inert></i></a>
+                    <button type="button" class="of-icon-btn" data-action="reviewPreview" data-original="{{original}}" data-tooltip="{{localize "OPTIMALFOUNDRY.Dashboard.Review.Preview"}}"
+                            aria-label="{{localize "OPTIMALFOUNDRY.Dashboard.Review.Preview"}}"><i class="fa-solid fa-eye" inert></i></button>
                     {{/if}}
                 </td>
             </tr>
@@ -128,6 +129,12 @@
         {{/if}}
     </div>
     {{/if}}
+    {{#if heavy}}
+    <div class="of-note of-note-row">
+        <p><i class="fa-solid fa-user-clock" inert></i> {{heavy.text}}</p>
+        <button type="button" data-action="runHeavy" {{#unless heavy.canRun}}disabled{{/unless}}><i class="fa-solid fa-bolt" inert></i> {{localize "OPTIMALFOUNDRY.Tracker.ConvertNow"}}</button>
+    </div>
+    {{/if}}
     {{#if status.lastError}}
     <p class="of-note bad" {{#if status.lastErrorTitle}}data-tooltip-text="{{status.lastErrorTitle}}"{{/if}}><i class="fa-solid fa-triangle-exclamation" inert></i> {{status.lastError}}</p>
     {{/if}}
@@ -190,16 +197,16 @@
                 </td>
                 <td class="of-actions">
                     {{#if canUndo}}
-                    <a data-action="undoEntry" data-original="{{original}}" data-tooltip="{{localize "OPTIMALFOUNDRY.Dashboard.Media.UndoEntry"}}"
-                       aria-label="{{localize "OPTIMALFOUNDRY.Dashboard.Media.UndoEntry"}}"><i class="fa-solid fa-rotate-left" inert></i></a>
+                    <button type="button" class="of-icon-btn of-danger" data-action="undoEntry" data-original="{{original}}" data-tooltip="{{localize "OPTIMALFOUNDRY.Dashboard.Media.UndoEntry"}}"
+                            aria-label="{{localize "OPTIMALFOUNDRY.Dashboard.Media.UndoEntry"}}"><i class="fa-solid fa-rotate-left" inert></i></button>
                     {{/if}}
                     {{#if canReoptimize}}
-                    <a data-action="retryEntry" data-original="{{original}}" data-tooltip="{{localize "OPTIMALFOUNDRY.Dashboard.Media.Reoptimize"}}"
-                       aria-label="{{localize "OPTIMALFOUNDRY.Dashboard.Media.Reoptimize"}}"><i class="fa-solid fa-wand-magic-sparkles" inert></i></a>
+                    <button type="button" class="of-icon-btn" data-action="retryEntry" data-original="{{original}}" data-tooltip="{{localize "OPTIMALFOUNDRY.Dashboard.Media.Reoptimize"}}"
+                            aria-label="{{localize "OPTIMALFOUNDRY.Dashboard.Media.Reoptimize"}}"><i class="fa-solid fa-wand-magic-sparkles" inert></i></button>
                     {{/if}}
                     {{#if canRetry}}
-                    <a data-action="retryEntry" data-original="{{original}}" data-tooltip="{{localize "OPTIMALFOUNDRY.Dashboard.Media.Retry"}}"
-                       aria-label="{{localize "OPTIMALFOUNDRY.Dashboard.Media.Retry"}}"><i class="fa-solid fa-rotate-right" inert></i></a>
+                    <button type="button" class="of-icon-btn" data-action="retryEntry" data-original="{{original}}" data-tooltip="{{localize "OPTIMALFOUNDRY.Dashboard.Media.Retry"}}"
+                            aria-label="{{localize "OPTIMALFOUNDRY.Dashboard.Media.Retry"}}"><i class="fa-solid fa-rotate-right" inert></i></button>
                     {{/if}}
                 </td>
             </tr>
