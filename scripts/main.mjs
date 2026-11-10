@@ -9,11 +9,15 @@ import * as backfill from "./media/backfill.mjs";
 import { initScheduler, networkStatus } from "./net/scheduler.mjs";
 import { initPreload, preloadStatus } from "./net/preload.mjs";
 import { detectCdn } from "./net/cdn.mjs";
-import { initServiceWorker, cleanupServiceWorker, swStatus, recheckServiceWorker } from "./p2p/sw-client.mjs";
+import { installLocalCache, startLocalCache, readyLocalCache, cacheStatus } from "./net/local-cache.mjs";
 import { initSwarm, swarmStatus, swarmOverview } from "./p2p/swarm.mjs";
 import { registerUI, OptimalFoundryDashboard } from "./ui/dashboard.mjs";
 import { setTrackerVisible } from "./ui/tracker.mjs";
 import { openWelcome } from "./ui/welcome.mjs";
+
+// At import, before Foundry loads anything: the wrapped fetch must already be in place when the first scene draws.
+// It does nothing until `startLocalCache()` turns the cache on at `init`.
+installLocalCache();
 
 /** Run one subsystem step; a failure disables only that step. */
 async function step(name, fn) {
@@ -23,6 +27,7 @@ async function step(name, fn) {
 
 Hooks.once("init", () => {
   registerSettings();
+  startLocalCache();
   step("ui", registerUI);
   if (getSetting("mediaEnabled")) step("upload hook", initUploadHook);
   if (getSetting("mediaEnabled")) step("rewrite guards", installRewriteGuards);
@@ -33,7 +38,7 @@ Hooks.once("ready", async () => {
   game.modules.get(MODULE_ID).api = {
     optimizeFile, canConvert, conversionBlocker, backfill,
     libraryStats, getLibrary, effectiveNetwork,
-    networkStatus, preloadStatus, swStatus, recheckServiceWorker, swarmStatus, swarmOverview,
+    networkStatus, preloadStatus, cacheStatus, swarmStatus, swarmOverview,
     openDashboard: () => new OptimalFoundryDashboard().render({ force: true }),
     openTracker: () => setTrackerVisible(true),
     openWelcome
@@ -49,9 +54,8 @@ Hooks.once("ready", async () => {
 
   // The probe can take several seconds behind a tunnel; nothing below needs its result to start.
   if (isCoordinator()) detectCdn().catch(err => warn("CDN detection failed", err));
-  // Not awaited: registration can take seconds and nothing below needs it.
-  if (getSetting("serviceWorker")) step("service worker", initServiceWorker);
-  else step("service worker cleanup", cleanupServiceWorker);
+  // Not awaited: it indexes every kept file and nothing below needs that to be done.
+  step("local cache", readyLocalCache);
   // Always started: the swarm switches itself on and off as settings and the CDN detection change, and the
   // coordinator's tracker must exist even while this browser does not share.
   await step("p2p swarm", initSwarm);

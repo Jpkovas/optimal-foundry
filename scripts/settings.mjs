@@ -46,7 +46,8 @@ const DEFS = {
 
   // ---------- P2P / Service Worker ----------
   p2pEnabled:          { scope: "world", type: Boolean, default: true, config: false, group: "p2p" },
-  serviceWorker:       { scope: "world", type: Boolean, default: true, config: false, group: "p2p" },
+  /** Keep media in each browser's own storage (Cache Storage), managed by the page itself: nothing to install. */
+  localCache:          { scope: "world", type: Boolean, default: true, config: false, group: "p2p" },
   iceServers:          { scope: "world", type: String,  default: "stun:stun.cloudflare.com:3478, stun:stun.l.google.com:19302", config: false, group: "p2p" },
   p2pMinFileKB:        { scope: "world", type: Number,  default: 512, config: false, group: "p2p", range: { min: 0, max: 102400, step: 64 } },
   p2pTimeoutSec:       { scope: "world", type: Number,  default: 8, config: false, group: "p2p", range: { min: 2, max: 60, step: 1 } },
@@ -85,7 +86,7 @@ const DEFS = {
 /** Settings that only apply under the "custom" network profile; the Settings window greys them out otherwise. */
 export const PROFILE_KEYS = ["maxConcurrentRequests", "preloadSharePct", "staggerJoin"];
 /** Changing one of these needs every client to reload. */
-export const RELOAD_KEYS = ["serviceWorker", "p2pEnabled", "mediaEnabled"];
+export const RELOAD_KEYS = ["localCache", "p2pEnabled", "mediaEnabled"];
 
 /**
  * Register every setting. Each one fires `optimal-foundry.settingChanged(key, value, options, userId)` on every

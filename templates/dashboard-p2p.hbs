@@ -13,17 +13,16 @@
     {{#if overview.reason}}<p class="of-note">{{overview.reason}}</p>{{/if}}
     {{/if}}
 
-    <h3 class="of-title"><i class="fa-solid fa-box-archive" inert></i> {{localize "OPTIMALFOUNDRY.Dashboard.P2P.ServiceWorker"}}</h3>
-    {{#if sw}}
+    <h3 class="of-title"><i class="fa-solid fa-box-archive" inert></i> {{localize "OPTIMALFOUNDRY.Dashboard.P2P.LocalCache"}}</h3>
+    {{#if cache}}
     <dl class="of-kv">
-        <dt>{{localize "OPTIMALFOUNDRY.Dashboard.P2P.Controlling"}}</dt><dd><span class="of-chip {{#if sw.isControlling}}ok{{else}}idle{{/if}}">{{sw.controlling}}</span></dd>
-        <dt>{{localize "OPTIMALFOUNDRY.Dashboard.P2P.Cache"}}</dt><dd>{{sw.cachedFiles}} · {{sw.cachedBytes}} / {{sw.quota}}</dd>
-        <dt>{{localize "OPTIMALFOUNDRY.Dashboard.P2P.Supported"}}</dt><dd>{{sw.supported}}</dd>
-        <dt>{{localize "OPTIMALFOUNDRY.Dashboard.P2P.Registered"}}</dt><dd>{{sw.registered}}</dd>
-        <dt>{{localize "OPTIMALFOUNDRY.Sw.Version"}}</dt><dd>{{sw.version}}{{#if sw.outdated}} <span class="of-chip bad">{{localize "OPTIMALFOUNDRY.Sw.OutdatedBadge"}}</span>{{/if}}</dd>
-        <dt>{{localize "OPTIMALFOUNDRY.Sw.Persisted"}}</dt><dd>{{sw.persisted}}</dd>
+        <dt>{{localize "OPTIMALFOUNDRY.Dashboard.Media.State"}}</dt><dd><span class="of-chip {{#if cache.active}}ok{{else}}idle{{/if}}">{{#if cache.active}}{{localize "OPTIMALFOUNDRY.Dashboard.P2P.CacheActive"}}{{else}}{{localize "OPTIMALFOUNDRY.Dashboard.P2P.CacheInactive"}}{{/if}}</span></dd>
+        {{#if cache.active}}
+        <dt>{{localize "OPTIMALFOUNDRY.Dashboard.P2P.Cache"}}</dt><dd>{{cache.cachedFiles}} · {{cache.cachedBytes}} / {{cache.quota}}</dd>
+        <dt>{{localize "OPTIMALFOUNDRY.Dashboard.P2P.Persisted"}}</dt><dd>{{cache.persisted}}</dd>
+        {{/if}}
     </dl>
-    {{#if sw.reason}}<p class="of-note">{{sw.reason}}</p>{{/if}}
+    {{#if cache.reason}}<p class="of-note">{{cache.reason}}</p>{{/if}}
     {{else}}
     <p class="of-muted">{{localize "OPTIMALFOUNDRY.Dashboard.Common.Unavailable"}}</p>
     {{/if}}

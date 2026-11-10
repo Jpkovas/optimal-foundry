@@ -46,6 +46,7 @@ test("client: the status report says where this browser is and what it can do", 
   // A private address is not the server's own machine (it is charged), and it cannot see a public CDN.
   assert.deepEqual({ local, publicOrigin, secure, cache, p2p, joining },
     { local: false, publicOrigin: false, secure: true, cache: false, p2p: false, joining: false });
+  assert.equal(report.p.cache, false, "the local cache is not started in this test: `cache` says so");
 });
 
 test("client: each report carries the round trip of the one before", async () => {
@@ -91,10 +92,7 @@ test("client: an urgent load is reported at once, fires the hook once, and its e
   assert.equal(urgentHooks(), hooks + 2, "back at 0, the next load is a start again");
 });
 
-test("client: an urgent load aborts a running preload even when a Service Worker controls the page", async () => {
-  const told = []; // what the page tells its Service Worker
-  Object.defineProperty(globalThis, "navigator", { configurable: true,
-    value: { serviceWorker: { controller: { postMessage: message => told.push(message) }, addEventListener() {} } } });
+test("client: an urgent load aborts a running preload through its own signal, unless it is past half", async () => {
   w.tick(10_000); // idle again
   const run = (url, total, received) => {
     const hold = pending();
@@ -115,10 +113,6 @@ test("client: an urgent load aborts a running preload even when a Service Worker
   assert.equal(outcome, "AbortError", "an optimized file is no longer exempt");
   late.finish();
   assert.equal(await late.result, "kept", "past half of its bytes, it finishes");
-  // The worker downloads on its own behalf: it is told to stop the same file, and only that one.
-  assert.equal(told.length, 1);
-  assert.match(JSON.stringify(told[0]), /maps\/a\.of-0123abcd\.webp/);
-  assert.doesNotMatch(JSON.stringify(told[0]), /maps\/b\.of-0123abcd\.webp/);
 });
 
 test("client: a video still buffering counts as activity", async () => {

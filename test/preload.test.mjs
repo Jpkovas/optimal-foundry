@@ -1,12 +1,15 @@
 import { test, before } from "node:test";
 import assert from "node:assert/strict";
+import { installBrowser, ORIGIN, bytes, tick, until, fileResponse, slowFile } from "./cache-fakes.mjs";
 
 /**
  * The automatic preload plan (buildQueue) on a small fake world: no scene marked, yet everything players may need
- * is queued, most likely first, with the reason for each scene or group.
+ * is queued, most likely first, with the reason for each scene or group. Then the warm-up of one file, first with
+ * the local cache off (a plain fetch), then through the local cache in a stubbed browser: what each answer costs
+ * the host. The last tests replace Foundry's globals with the stubbed browser's, so they come last.
  */
 let buildQueue, warm, preloadStatus;
-const settings = { nextScenes: [], preloadInclude: [], preloadExclude: [], mediaEnabled: false, backfillMode: "off", library: {} };
+const settings = { nextScenes: [], preloadInclude: [], preloadExclude: [], mediaEnabled: false, backfillMode: "off", library: {}, localCache: true, cacheQuotaMB: 4096 };
 
 const coll = (list, extra = {}) => Object.assign(list, { get: id => list.find(d => d.id === id) ?? null, contents: list }, extra);
 let n = 0;
@@ -118,7 +121,18 @@ test("preload: a marked scene goes first, even when excluded", () => {
   settings.nextScenes = [];
 });
 
-/** One fake answer for the next fetch; records what was asked. */
+test("preload: this browser's preloadScope turns its preloading off", () => {
+  settings.preloadEnabled = true;
+  for (const [scope, enabled] of [["all", true], ["session", true], ["off", false]]) {
+    settings.preloadScope = scope;
+    assert.equal(preloadStatus().enabled, enabled, scope);
+  }
+  settings.preloadEnabled = false;
+  settings.preloadScope = "all";
+  assert.equal(preloadStatus().enabled, false, "the world's switch still wins");
+});
+
+/** One fake answer for the next fetch (no local cache yet: a plain fetch); records what was asked. */
 function answer(status, headers = {}, bytes = 0) {
   const seen = {};
   globalThis.fetch = async (url, init) => {
@@ -129,29 +143,25 @@ function answer(status, headers = {}, bytes = 0) {
 }
 const URL_A = "https://play.example.com/maps/a.of-0123abcd.webp";
 
-test("preload: a warm-up request is marked for the Service Worker and asks for low priority", async () => {
+test("preload: a warm-up request asks for low priority and carries no private mark", async () => {
   const seen = answer(200, {}, 10);
   await warm(URL_A);
   assert.equal(seen.url, URL_A);
-  assert.equal(seen.init.headers["X-Optimal-Foundry-Preload"], "1");
   assert.equal(seen.init.priority, "low");
+  assert.equal(seen.init.headers, undefined, "nothing is added for the server to see");
 });
 
-test("preload: only what the host uploaded is reported", async () => {
+test("preload: without the local cache only what the host uploaded is reported", async () => {
   const bytes = async headers => { answer(200, headers, 1234); return (await warm(URL_A)).bytes; };
-  // The Service Worker names where its answer came from.
-  assert.equal(await bytes({ "X-Optimal-Foundry-Source": "cache" }), 0);
-  assert.equal(await bytes({ "X-Optimal-Foundry-Source": "p2p" }), 0);
-  assert.equal(await bytes({ "X-Optimal-Foundry-Source": "net" }), 1234);
-  // Behind a CDN, an edge that already held the file spared the host too.
-  assert.equal(await bytes({ "X-Optimal-Foundry-Source": "net", "cf-cache-status": "HIT" }), 0);
+  // Behind a CDN, an edge that already held the file spared the host.
   assert.equal(await bytes({ "cf-cache-status": "HIT" }), 0);
+  assert.equal(await bytes({ "cf-cache-status": "REVALIDATED" }), 0);
   assert.equal(await bytes({ "cf-cache-status": "MISS" }), 1234, "an edge miss is an upload from the host");
-  assert.equal(await bytes({}), 1234, "no worker, no CDN: the network moved it");
+  assert.equal(await bytes({}), 1234, "no CDN: the network moved it");
 });
 
 test("preload: progress says how far the download is and whether the host is paying", async () => {
-  answer(200, { "content-length": "1234", "X-Optimal-Foundry-Source": "p2p" }, 1234);
+  answer(200, { "content-length": "1234", "cf-cache-status": "HIT" }, 1234);
   const progress = { total: 0, received: 0 };
   assert.deepEqual(await warm(URL_A, undefined, 5000, progress), { ok: true, bytes: 0 });
   assert.deepEqual(progress, { total: 1234, received: 1234, offHost: true });
@@ -168,13 +178,79 @@ test("preload: files over the limit, missing files and overload", async () => {
   await assert.rejects(warm(URL_A), /HTTP 503/, "transient: reported as an error, offered again later");
 });
 
-test("preload: this browser's preloadScope turns its preloading off", () => {
-  settings.preloadEnabled = true;
-  for (const [scope, enabled] of [["all", true], ["session", true], ["off", false]]) {
-    settings.preloadScope = scope;
-    assert.equal(preloadStatus().enabled, enabled, scope);
-  }
-  settings.preloadEnabled = false;
-  settings.preloadScope = "all";
-  assert.equal(preloadStatus().enabled, false, "the world's switch still wins");
+
+test("preload: through the local cache, a file it holds costs the host nothing", async () => {
+  const b = installBrowser({ settings: { localCache: true, cacheQuotaMB: 4096 } });
+  const cache = await import("../scripts/net/local-cache.mjs");
+  cache.installLocalCache();
+  cache.startLocalCache();
+  await cache.readyLocalCache();
+  globalThis.__browser = b;
+  const path = "maps/held.of-0123abcd.webp";
+  b.store(path, bytes(1234));
+  const progress = { total: 0, received: 0 };
+  assert.deepEqual(await warm(`${ORIGIN}/${path}`, undefined, 5000, progress), { ok: true, bytes: 0 });
+  assert.equal(progress.offHost, true);
+  assert.equal(b.server.calls.length, 0);
+});
+
+test("preload: through the local cache, a download costs what the server sent, unless the edge held the file", async () => {
+  const b = globalThis.__browser;
+  const cost = async (name, headers) => {
+    b.server.handler = async () => fileResponse(bytes(1234), headers);
+    const result = await warm(`${ORIGIN}/maps/${name}.of-0123abcd.webp`);
+    await until(() => b.stored().includes(`${ORIGIN}/maps/${name}.of-0123abcd.webp`), `${name} stored`);
+    return result.bytes;
+  };
+  assert.equal(await cost("net1", {}), 1234);
+  assert.equal(b.server.calls.at(-1).init.priority, "low");
+  assert.equal(await cost("net2", { "cf-cache-status": "MISS" }), 1234);
+  assert.equal(await cost("edge", { "cf-cache-status": "HIT" }), 0, "an edge hit is refunded");
+  b.server.calls.length = 0;
+  assert.equal(await cost("net1", {}), 0, "now it is kept: asking again costs nothing");
+});
+
+test("preload: a file too large to keep stops its download and stores nothing", async () => {
+  const b = globalThis.__browser;
+  const path = "maps/huge.of-0123abcd.webp";
+  b.server.handler = async call => slowFile(call, bytes(5000));
+  assert.deepEqual(await warm(`${ORIGIN}/${path}`, undefined, 1000), { ok: false, bytes: 0, reason: "tooLarge" });
+  await until(() => b.server.calls.at(-1).aborted, "the download aborted");
+  await tick(30);
+  assert.equal(b.stored().includes(`${ORIGIN}/${path}`), false);
+
+  // Found out while reading (no declared length): the bytes already moved are the host's, the rest is not downloaded.
+  const path2 = "maps/huge2.of-0123abcd.webp";
+  b.server.handler = async call => {
+    call.aborted = false;
+    const stream = new ReadableStream({
+      start(c) {
+        c.enqueue(bytes(5000));
+        call.init.signal.addEventListener("abort", () => { call.aborted = true; c.error(new DOMException("aborted", "AbortError")); });
+      }
+    });
+    return new Response(stream, { status: 200, headers: { "content-type": "image/webp" } });
+  };
+  const result = await warm(`${ORIGIN}/${path2}`, undefined, 1000);
+  assert.deepEqual(result, { ok: false, bytes: 5000, reason: "tooLarge" });
+  await until(() => b.server.calls.at(-1).aborted, "the download aborted");
+  await tick(30);
+  assert.equal(b.stored().includes(`${ORIGIN}/${path2}`), false);
+});
+
+test("preload: an aborted warm-up stops, stores nothing, and a missing file or overload is reported", async () => {
+  const b = globalThis.__browser;
+  b.server.handler = async call => slowFile(call, bytes(5000));
+  const ctl = new AbortController();
+  const pending = warm(`${ORIGIN}/maps/stop.of-0123abcd.webp`, ctl.signal);
+  await until(() => b.server.calls.some(c => c.url.endsWith("stop.of-0123abcd.webp")));
+  ctl.abort();
+  await assert.rejects(pending);
+  await tick(30);
+  assert.equal(b.stored().includes(`${ORIGIN}/maps/stop.of-0123abcd.webp`), false);
+
+  b.server.handler = async () => new Response("no", { status: 404 });
+  assert.deepEqual(await warm(`${ORIGIN}/maps/none.of-0123abcd.webp`), { ok: false, bytes: 0, reason: "HTTP 404" });
+  b.server.handler = async () => new Response("down", { status: 503 });
+  await assert.rejects(warm(`${ORIGIN}/maps/down.of-0123abcd.webp`), /HTTP 503/);
 });

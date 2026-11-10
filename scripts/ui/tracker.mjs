@@ -5,7 +5,7 @@ import { upcomingReadiness, preloadPlan } from "../net/preload.mjs";
 import { networkStatus } from "../net/scheduler.mjs";
 import { swarmOverview } from "../p2p/swarm.mjs";
 import {
-  TEMPLATE, L, api, call, warnOnce, setting, num, fmtBytes, fmtRate, fmtCount, basename, describeSetup, describeSharing,
+  TEMPLATE, L, api, call, warnOnce, setting, num, fmtBytes, fmtRate, fmtCount, basename, describeSharing,
   describeHealth, convertHeavyNow, LiveApplication
 } from "./common.mjs";
 import { upcomingScene, readyCue } from "./format.mjs";
@@ -89,11 +89,10 @@ export class OptimalFoundryTracker extends LiveApplication {
     const context = await super._prepareContext(options);
     const a = api();
     const coordinator = isCoordinator();
-    const [backfill, net, stats, sw, eff, overview] = await Promise.all([
+    const [backfill, net, stats, eff, overview] = await Promise.all([
       call("backfillStatus", a.backfill?.backfillStatus),
       call("networkStatus", a.networkStatus),
       call("libraryStats", a.libraryStats),
-      call("swStatus", a.swStatus),
       call("effectiveNetwork", a.effectiveNetwork),
       coordinator ? call("swarmOverview", swarmOverview) : null
     ]);
@@ -112,7 +111,6 @@ export class OptimalFoundryTracker extends LiveApplication {
     return Object.assign(context, {
       collapsed: !!setting("trackerCollapsed", false),
       coordinator,
-      setup: !!describeSetup(sw),
       media,
       players,
       // Players are known to the coordinating session only.

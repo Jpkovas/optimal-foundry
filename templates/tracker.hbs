@@ -2,7 +2,6 @@
     {{#if collapsed}}
     <div class="of-tracker-head" data-of-drag>
         <span class="of-tracker-logo" data-tooltip="Optimal Foundry"><i class="fa-solid fa-gauge-high" inert></i></span>
-        {{#if setup}}<span class="of-mini warn" data-tooltip="{{localize "OPTIMALFOUNDRY.Setup.Short"}}"><i class="fa-solid fa-triangle-exclamation" inert></i></span>{{/if}}
         <span class="of-mini {{media.cls}}" data-tooltip-text="{{media.text}}"><i class="{{media.icon}}" inert></i>{{#if media.short}}<span>{{media.short}}</span>{{/if}}</span>
         {{#if players.length}}
         <span class="of-mini of-dots {{#if allReady}}ok{{/if}}" data-tooltip-text="{{#if allReady}}{{allReady}}{{else}}{{readyTip}}{{/if}}">
@@ -22,13 +21,6 @@
         <button type="button" class="of-icon-btn of-tracker-tool" data-action="hide" data-tooltip="{{localize "OPTIMALFOUNDRY.Tracker.Hide"}}" aria-label="{{localize "OPTIMALFOUNDRY.Tracker.Hide"}}"><i class="fa-solid fa-xmark" inert></i></button>
     </div>
     <div class="of-tracker-body">
-        {{#if setup}}
-        <div class="of-tracker-row warn">
-            <i class="fa-solid fa-triangle-exclamation" inert></i>
-            <span class="of-tracker-text">{{localize "OPTIMALFOUNDRY.Setup.Short"}}</span>
-            <button type="button" class="of-tracker-link" data-action="dashboard">{{localize "OPTIMALFOUNDRY.Setup.Finish"}}</button>
-        </div>
-        {{/if}}
         <div class="of-tracker-row {{media.cls}}">
             <i class="{{media.icon}}" inert></i>
             <span class="of-tracker-text">{{media.text}}</span>

@@ -1,4 +1,5 @@
 <div class="of-settings-body of-welcome-body scrollable">
+    {{#if blocker}}<p class="of-note warn"><i class="fa-solid fa-lock-open" inert></i> {{blocker}}</p>{{/if}}
     <p class="of-welcome-lead">{{localize "OPTIMALFOUNDRY.Welcome.Lead"}} <i class="fa-regular fa-circle-question of-hint" data-tooltip="{{localize "OPTIMALFOUNDRY.Welcome.Intro"}}" aria-label="{{localize "OPTIMALFOUNDRY.Welcome.Intro"}}"></i></p>
 
     <h3 class="of-title"><i class="fa-solid fa-wand-magic-sparkles" inert></i> {{localize "OPTIMALFOUNDRY.Welcome.PresetTitle"}}

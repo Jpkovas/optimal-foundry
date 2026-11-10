@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 
 /**
- * swarm.mjs with a stubbed Foundry, socket, Service Worker container and RTCPeerConnection: when a browser is in
+ * swarm.mjs with a stubbed Foundry, socket, local cache and RTCPeerConnection: when a browser is in
  * the swarm, what the coordinator's tracker reports, and how a download leaves a peer for the host.
  * The fake peer connection opens its data channel at once and hands every message to `seeder`, a scripted remote
  * player. The module keeps its state for the whole file, so the tests run in order and build on each other.
@@ -12,7 +12,7 @@ const ORIGIN = "https://vtt.example";
 const MIB = 1_048_576;
 const settings = {
   p2pEnabled: true, networkProfile: "auto", cdnStatus: {}, p2pParticipate: true, connectionChoiceDone: false,
-  serviceWorker: true, hostUploadMbps: 20, preloadSharePct: 60, maxConcurrentRequests: 150, staggerJoin: true,
+  localCache: true, hostUploadMbps: 20, preloadSharePct: 60, maxConcurrentRequests: 150, staggerJoin: true,
   idleSeconds: 5, preloadMaxFileMB: 100, p2pTimeoutSec: 8, cacheQuotaMB: 4096, p2pMinFileKB: 0, iceServers: "",
   p2pUploadCapMbps: 4, library: {}
 };
@@ -26,10 +26,6 @@ const users = new Map(["gm", "me", "p2", "p3"].map(id => [id, { id, name: id, is
 const sent = [];          // every envelope this browser put on the socket
 let deliver = null;       // socket.mjs's listener: deliver(envelope, senderId) is a message arriving
 let wantReply = () => ({ p: { peers: [], sha256: null, bytes: 0 } });
-const configs = [];       // config messages posted to the Service Worker
-const swEvents = {};
-const controller = { postMessage: msg => { if (msg?.type === "config") configs.push(msg); } };
-const sw = { controller, addEventListener: (type, fn) => { swEvents[type] = fn; }, startMessages() {} };
 
 /** The remote player's side of every data channel. `answer(req)`: bytes to send for a piece request, or null to stay silent. */
 const seeder = { requests: [], answer: () => null, connections: 0 };
@@ -95,7 +91,7 @@ function hostServing(file, calls) {
   };
 }
 
-let swarm, socket, MSG;
+let swarm, socket, MSG, cache;
 const realFetch = globalThis.fetch;
 
 before(async () => {
@@ -105,7 +101,7 @@ before(async () => {
   globalThis.window = globalThis;
   globalThis.isSecureContext = true;
   globalThis.location = { origin: ORIGIN, hostname: "vtt.example", href: `${ORIGIN}/game` };
-  Object.defineProperty(globalThis, "navigator", { value: { serviceWorker: sw, deviceMemory: 8 }, configurable: true, writable: true });
+  Object.defineProperty(globalThis, "navigator", { value: { deviceMemory: 8 }, configurable: true, writable: true });
   globalThis.caches = { open: async () => ({ keys: async () => [], match: async () => undefined }) };
   globalThis.RTCPeerConnection = FakePeerConnection;
   globalThis.foundry = { utils: { getRoute: p => `/${String(p).replace(/^\/+/, "")}`, deepClone: v => structuredClone(v) } };
@@ -129,6 +125,9 @@ before(async () => {
   socket = await import("../scripts/socket.mjs");
   MSG = socket.MSG;
   swarm = await import("../scripts/p2p/swarm.mjs");
+  cache = await import("../scripts/net/local-cache.mjs");
+  cache.installLocalCache();
+  cache.startLocalCache();
   socket.initSocket();
 });
 
@@ -149,17 +148,10 @@ test("swarm: a browser is in the swarm only when the settings, the player and th
   assert.equal(seeder.connections, 0, "no RTCPeerConnection before the player chose");
   assert.equal(swarm.swarmStatus().peers.length, 0);
 
-  await tick();
-  assert.equal(configs.at(-1).p2p, false, "the worker is told this page does not want P2P");
-
   set("connectionChoiceDone", true);
   assert.equal(state(), "on");
-  await tick();
-  assert.equal(configs.at(-1).p2p, true, "and told again as soon as it does");
   set("p2pParticipate", false);
   assert.equal(state(), "optOut");
-  await tick();
-  assert.equal(configs.at(-1).p2p, false);
   set("p2pParticipate", true);
   assert.equal(state(), "on");
 
@@ -175,17 +167,15 @@ test("swarm: a browser is in the swarm only when the settings, the player and th
   set("cdnStatus", {});
   assert.equal(state(), "on");
 
-  // No Service Worker controlling the page: nothing to fetch into or serve from.
-  sw.controller = null;
-  swEvents.controllerchange();
+  // The local cache is not active in this browser: nothing to fetch into or serve from. The swarm follows it
+  // turning off and on again by itself (no settings change needed).
+  settings.localCache = false;
+  cache.startLocalCache();
+  assert.equal(cache.cacheStatus().active, false);
   assert.equal(state(), "noCache");
-  sw.controller = controller;
-  swEvents.controllerchange();
+  settings.localCache = true;
+  cache.startLocalCache();
   assert.equal(state(), "on");
-  set("serviceWorker", false);
-  set("p2pParticipate", true);
-  assert.equal(state(), "noCache");
-  settings.serviceWorker = true;
 
   // Only the server's own machine counts as local: a LAN or VPN address is a normal player.
   location.hostname = "127.0.0.1";

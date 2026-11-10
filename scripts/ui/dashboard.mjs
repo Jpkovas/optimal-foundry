@@ -6,8 +6,8 @@ import { detectCdn, isLocalOrigin } from "../net/cdn.mjs";
 import { swarmOverview } from "../p2p/swarm.mjs";
 import {
   TEMPLATE, L, maybeL, api, warnOnce, call, setting, num, fmtBytes, fmtRate, fmtCount, fmtDate, basename, yesNo,
-  codeLabel, reasonLabel, blockerNote, describeSw, describeSwarm, describeSetup, describeSharing, describeHealth,
-  recheckSetup, convertHeavyNow, LiveApplication
+  codeLabel, reasonLabel, blockerNote, describeCache, describeSwarm, describeSharing, describeHealth,
+  convertHeavyNow, LiveApplication
 } from "./common.mjs";
 import { registerConnectionUI } from "./connection.mjs";
 import { registerFirstRun } from "./first-run.mjs";
@@ -197,14 +197,13 @@ export class OptimalFoundryDashboard extends LiveApplication {
       reviewApproveAll: OptimalFoundryDashboard.#onReviewApproveAll,
       reviewDecline: OptimalFoundryDashboard.#onReviewDecline,
       reviewPreview: OptimalFoundryDashboard.#onReviewPreview,
-      recheckSw: OptimalFoundryDashboard.#onRecheck,
       runHeavy: () => convertHeavyNow(),
       welcome: () => api().openWelcome?.()
     }
   };
 
   static PARTS = {
-    header: { template: TEMPLATE("dashboard"), templates: [TEMPLATE("setup")] },
+    header: { template: TEMPLATE("dashboard") },
     tabs: { template: "templates/generic/tab-navigation.hbs" },
     media: { template: TEMPLATE("dashboard-media"), scrollable: [""] },
     network: { template: TEMPLATE("dashboard-network"), scrollable: [""] },
@@ -318,11 +317,11 @@ export class OptimalFoundryDashboard extends LiveApplication {
     const parts = new Set(options.parts ?? Object.keys(this.constructor.PARTS));
     const a = api();
     const coordinator = isCoordinator();
-    const [backfill, net, preload, sw, swarm, eff, overview, caps] = await Promise.all([
+    const [backfill, net, preload, cache, swarm, eff, overview, caps] = await Promise.all([
       call("backfillStatus", a.backfill?.backfillStatus),
       call("networkStatus", a.networkStatus),
       call("preloadStatus", a.preloadStatus),
-      call("swStatus", a.swStatus),
+      call("cacheStatus", a.cacheStatus),
       call("swarmStatus", a.swarmStatus),
       call("effectiveNetwork", a.effectiveNetwork),
       coordinator ? call("swarmOverview", swarmOverview) : null,
@@ -332,7 +331,7 @@ export class OptimalFoundryDashboard extends LiveApplication {
     const blocker = parts.has("media") ? await call("conversionBlocker", conversionBlocker) : null;
     // Sharing as the coordinator sees it: the GM on the server machine is never in the swarm, the players are.
     const sharing = coordinator ? describeSharing(eff, overview, net?.clients) : null;
-    const raw = { a, backfill, net, preload, sw, swarm, eff, sharing, blocker, caps };
+    const raw = { a, backfill, net, preload, cache, swarm, eff, sharing, blocker, caps };
     Object.assign(context, {
       apiReady: !!game.modules.get(MODULE_ID)?.api,
       header: this.#headerContext(raw)
@@ -352,11 +351,10 @@ export class OptimalFoundryDashboard extends LiveApplication {
     return partContext;
   }
 
-  #headerContext({ backfill, net, sw, swarm, sharing }) {
+  #headerContext({ backfill, net, cache, swarm, sharing }) {
     const phase = backfill?.phase ?? "idle";
     const peers = Array.isArray(swarm?.peers) ? swarm.peers.filter(p => p?.state === "open").length : 0;
     return {
-      setup: describeSetup(sw),
       media: {
         label: backfill
           ? (backfill.paused ? L("Dashboard.Media.Paused") : maybeL(`Dashboard.Phase.${phase}`, phase))
@@ -374,9 +372,10 @@ export class OptimalFoundryDashboard extends LiveApplication {
         cls: swarm?.enabled ? (peers ? "ok" : "idle") : "off",
         tip: L("Dashboard.Tabs.p2p")
       },
-      sw: {
-        label: sw?.controlling ? L("Dashboard.P2P.SwActive") : L("Dashboard.P2P.SwInactive"),
-        cls: !sw?.controlling ? "off" : sw.outdated ? "warn" : "ok"
+      cache: {
+        label: cache?.active ? L("Dashboard.P2P.CacheActive") : L("Dashboard.P2P.CacheInactive"),
+        cls: cache?.active ? "ok" : "off",
+        tip: (cache && !cache.active && codeLabel(cache.reason, ["CacheReason"])) || L("Dashboard.P2P.LocalCache")
       }
     };
   }
@@ -606,7 +605,7 @@ export class OptimalFoundryDashboard extends LiveApplication {
     };
   }
 
-  #p2pContext({ sw, swarm, sharing }) {
+  #p2pContext({ cache, swarm, sharing }) {
     const peers = (Array.isArray(swarm?.peers) ? swarm.peers : []).map(p => ({
       name: game.users.get(p?.userId)?.name ?? p?.userId ?? "—",
       state: codeLabel(p?.state, ["P2P.PeerState"]) || "—",
@@ -618,7 +617,7 @@ export class OptimalFoundryDashboard extends LiveApplication {
     return {
       blocker: window.isSecureContext ? "" : L("Blocker.insecure"),
       overview: sharing,
-      sw: describeSw(sw),
+      cache: describeCache(cache, !window.isSecureContext),
       swarm: describeSwarm(swarm),
       peers,
       hasPeers: peers.length > 0,
@@ -933,11 +932,6 @@ export class OptimalFoundryDashboard extends LiveApplication {
       rejectClose: false
     });
     if (ok) await this.#retry("retry", originals);
-  }
-
-  static async #onRecheck(_event, target) {
-    await recheckSetup(target);
-    this._refresh(true);
   }
 
   static async #onDetectCdn() {

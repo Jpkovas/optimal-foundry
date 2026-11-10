@@ -6,27 +6,22 @@
  *   OF_GM        game master user name                     (default "Gamemaster")
  *   OF_PLAYERS   comma separated player names, in order    (default "Player2")
  *   OF_PASSWORD  password shared by those test users       (default: none)
- *   OF_DATA      the server's Data folder, when this machine can reach it: the test then also puts the
- *                Service Worker bridge file in place (and restores what was there) to check both states
  *   OF_SHOTS     folder for screenshots                    (default: none taken)
  *
  * It uploads two small generated files into `worlds/<world>/assets/smoke/`; nothing else in the world is changed.
+ * Nothing is installed on the server beyond the module itself: the local cache must work from a plain install.
  * Exit code 0 when every check passed.
  */
 import { chromium } from "playwright";
 import fs from "node:fs";
 import path from "node:path";
-import { fileURLToPath } from "node:url";
 
 const BASE = (process.env.OF_URL ?? "http://127.0.0.1:30000").replace(/\/+$/, "");
 const GM = process.env.OF_GM ?? "Gamemaster";
 const PLAYERS = (process.env.OF_PLAYERS ?? "Player2").split(",").map(s => s.trim()).filter(Boolean);
 const PASSWORD = process.env.OF_PASSWORD ?? "";
-const DATA = process.env.OF_DATA ?? null;
 const SHOTS = process.env.OF_SHOTS ?? null;
-const MODULE_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 const MODULE_ID = "optimal-foundry";
-const BRIDGE = "optimal-foundry-sw.js";
 
 /** Console noise that is not the module's doing. */
 const IGNORED = [
@@ -40,17 +35,19 @@ function check(name, ok, detail = "") {
   console.log(`${ok ? "ok  " : "FAIL"} ${name}${detail ? "  (" + detail + ")" : ""}`);
 }
 
-/** Log a user into the world; resolves once Foundry reports ready. */
+/** Log a user into the world; resolves once Foundry reports ready. Every GET the page sends is recorded. */
 async function join(browser, userName) {
   const context = await browser.newContext({ viewport: { width: 1366, height: 768 } });
   const page = await context.newPage();
   const errors = [];
+  const requests = [];
   page.on("pageerror", e => errors.push(`pageerror: ${e.message}`));
   page.on("console", m => {
     if (m.type() !== "error") return;
     const text = m.text();
     if (!IGNORED.some(re => re.test(text))) errors.push(text.slice(0, 300));
   });
+  page.on("request", r => { if (r.method() === "GET") requests.push(decodeURIComponent(new URL(r.url()).pathname)); });
   await page.goto(`${BASE}/join`, { waitUntil: "domcontentloaded" });
   await page.waitForSelector('select[name="userId"]');
   await page.selectOption('select[name="userId"]', { label: userName });
@@ -58,10 +55,17 @@ async function join(browser, userName) {
   await page.click('button[name="join"]');
   await page.waitForURL("**/game", { timeout: 30_000 });
   await page.waitForFunction(() => globalThis.game?.ready === true, null, { timeout: 120_000 });
-  return { context, page, errors, userName };
+  return { context, page, errors, requests, userName };
 }
 
-const api = page => page.evaluate(id => Object.keys(game.modules.get(id)?.api ?? {}), MODULE_ID);
+/** How many GET requests for `filePath` left the page while `fn` ran, and what `fn` returned. */
+async function requestsDuring(session, filePath, fn) {
+  const wanted = "/" + filePath.replace(/^\/+/, "");
+  const before = session.requests.filter(p => p === wanted).length;
+  const value = await fn();
+  await session.page.waitForTimeout(300);
+  return { count: session.requests.filter(p => p === wanted).length - before, value };
+}
 
 async function shot(page, name) {
   if (!SHOTS) return;
@@ -72,17 +76,25 @@ async function shot(page, name) {
 /** Errors the module itself logged or threw (its console prefix, its files in a stack). */
 const moduleErrors = session => session.errors.filter(e => /optimal-foundry/i.test(e));
 
+const cacheStatus = session => session.page.evaluate(id => game.modules.get(id).api.cacheStatus(), MODULE_ID);
+
 /* ---------------------------------------- Checks ---------------------------------------- */
 
 async function checkModuleReady(gm) {
   const info = await gm.page.evaluate(id => {
     const m = game.modules.get(id);
-    return { active: !!m?.active, version: m?.version, isGM: game.user.isGM, secure: window.isSecureContext, world: game.world.id };
+    return { active: !!m?.active, version: m?.version, isGM: game.user.isGM, world: game.world.id, api: Object.keys(m?.api ?? {}) };
   }, MODULE_ID);
   check("module is active for the game master", info.active && info.isGM, `v${info.version}, world ${info.world}`);
-  const keys = await api(gm.page);
-  check("module API is exposed at ready", ["backfill", "swStatus", "networkStatus", "openDashboard"].every(k => keys.includes(k)), keys.join(","));
+  check("module API is exposed at ready", ["backfill", "cacheStatus", "networkStatus", "openDashboard"].every(k => info.api.includes(k)), info.api.join(","));
   return info;
+}
+
+async function checkCacheActive(session, label) {
+  const status = await cacheStatus(session);
+  const workers = await session.page.evaluate(async () => (await navigator.serviceWorker?.getRegistrations?.() ?? []).length);
+  check(`${label}: the local cache is on with nothing installed on the server`, status.active === true && workers === 0,
+    JSON.stringify({ active: status.active, reason: status.reason, files: status.cachedFiles, serviceWorkers: workers }));
 }
 
 /** Upload a generated PNG and WAV through Foundry's own upload path; the module must store optimized copies. */
@@ -92,14 +104,14 @@ async function checkUploads(gm, worldId) {
     await FP.createDirectory("data", dir).catch(() => {});
     const stamp = Date.now();
 
-    const canvas = document.createElement("canvas");
-    canvas.width = 1600; canvas.height = 1200;
-    const g = canvas.getContext("2d");
+    const cv = document.createElement("canvas");
+    cv.width = 1600; cv.height = 1200;
+    const g = cv.getContext("2d");
     const grad = g.createLinearGradient(0, 0, 1600, 1200);
     grad.addColorStop(0, "#27406b"); grad.addColorStop(1, "#c98a3a");
     g.fillStyle = grad; g.fillRect(0, 0, 1600, 1200);
     for (let i = 0; i < 400; i++) { g.fillStyle = `hsl(${i * 7 % 360} 60% 50% / 0.5)`; g.fillRect((i * 97) % 1600, (i * 53) % 1200, 60, 40); }
-    const png = await new Promise(r => canvas.toBlob(r, "image/png"));
+    const png = await new Promise(r => cv.toBlob(r, "image/png"));
 
     const rate = 44100, seconds = 3, n = rate * seconds;
     const wav = new DataView(new ArrayBuffer(44 + n * 2));
@@ -145,12 +157,65 @@ async function checkUploads(gm, worldId) {
   return out;
 }
 
+/** What the game loads through fetch, the canvas loader and audio elements must leave the server alone the second time. */
+async function checkCache(gm, uploads) {
+  const image = uploads.find(u => /\.webp$/.test(u.path ?? ""))?.path;
+  const sound = uploads.find(u => /\.ogg$/.test(u.path ?? ""))?.path;
+  if (image) {
+    const read = () => gm.page.evaluate(async p => (await (await fetch(foundry.utils.getRoute(p))).blob()).size, image);
+    const first = await requestsDuring(gm, image, read);
+    const second = await requestsDuring(gm, image, read);
+    check("an optimized image is downloaded from the server once", first.count <= 1 && second.count === 0 && second.value === first.value && second.value > 0,
+      `requests: ${first.count} then ${second.count}, ${second.value} bytes`);
+    // The way the canvas loads it: PIXI's own loader.
+    const pixi = await requestsDuring(gm, image, () => gm.page.evaluate(async p => {
+      const src = foundry.utils.getRoute(p);
+      const texture = await PIXI.Assets.load(src);
+      const size = { w: texture?.baseTexture?.width ?? 0, valid: !!texture?.baseTexture?.valid };
+      await PIXI.Assets.unload(src);
+      return size;
+    }, image));
+    check("the canvas loader gets that image from the local cache", pixi.count === 0 && pixi.value.valid && pixi.value.w > 0, `requests: ${pixi.count}, ${pixi.value.w}px wide`);
+  }
+  // A scene video the world already has: PIXI downloads it whole, so the second load must not touch the server.
+  const video = await gm.page.evaluate(id => Object.values(game.modules.get(id).api.getLibrary())
+    .find(e => e.status === "done" && /\.of-[0-9a-f]{8}\.webm$/i.test(e.optimized ?? "") && Number(e.bytes) > 50_000)?.optimized ?? null, MODULE_ID);
+  if (video) {
+    const load = () => gm.page.evaluate(async p => {
+      const src = foundry.utils.getRoute(p);
+      const texture = await PIXI.Assets.load(src);
+      const ok = !!texture?.baseTexture?.valid;
+      await PIXI.Assets.unload(src);
+      return ok;
+    }, video);
+    const first = await requestsDuring(gm, video, load);
+    const second = await requestsDuring(gm, video, load);
+    check("a scene video is downloaded once and then played from the local cache", first.value && second.value && first.count <= 1 && second.count === 0,
+      `${video.split("/").pop()}: requests ${first.count} then ${second.count}`);
+  }
+  if (sound) {
+    await gm.page.evaluate(async p => (await fetch(foundry.utils.getRoute(p))).arrayBuffer(), sound);
+    await gm.page.waitForTimeout(800);
+    const audio = await requestsDuring(gm, sound, () => gm.page.evaluate(p => new Promise(resolve => {
+      const element = new Audio();
+      const answer = extra => resolve({ blob: element.src.startsWith("blob:"), duration: element.duration || null, ...extra });
+      element.preload = "metadata";
+      element.onloadedmetadata = () => answer({});
+      element.onerror = () => answer({ error: true });
+      element.src = foundry.utils.getRoute(p);
+      setTimeout(() => answer({ timedOut: true }), 8000);
+    }), sound));
+    check("an audio element plays a kept sound from the local cache", audio.value.blob && audio.value.duration > 0 && audio.count === 0,
+      `requests: ${audio.count}, duration ${audio.value.duration}`);
+  }
+}
+
 async function checkWindows(gm) {
   const opened = await gm.page.evaluate(async id => {
     const api = game.modules.get(id).api;
-    const app = await api.openDashboard();
+    await api.openDashboard();
     await new Promise(r => setTimeout(r, 800));
-    const el = document.querySelector(".optimal-foundry.application, .application.optimal-foundry");
+    const el = [...document.querySelectorAll(".application.optimal-foundry")].find(e => e.querySelector("[data-action='tab']"));
     const tabs = [...(el?.querySelectorAll("[data-action='tab']") ?? [])].map(t => t.dataset.tab);
     const seen = [];
     for (const tab of tabs) {
@@ -159,65 +224,33 @@ async function checkWindows(gm) {
       const part = el.querySelector(`.tab[data-tab='${tab}'], [data-application-part='${tab}']`);
       seen.push({ tab, chars: (part?.textContent ?? "").trim().length });
     }
-    return { rendered: !!el, tabs: seen, title: el?.querySelector(".window-title")?.textContent ?? null, app: !!app };
+    return { rendered: !!el, tabs: seen, title: el?.querySelector(".window-title")?.textContent ?? null };
   }, MODULE_ID);
   check("dashboard opens", opened.rendered, opened.title ?? "");
   check("every dashboard tab renders content", opened.tabs.length >= 4 && opened.tabs.every(t => t.chars > 20), opened.tabs.map(t => `${t.tab}:${t.chars}`).join(" "));
   await shot(gm.page, "gm-dashboard");
 }
 
-async function checkServiceWorker(session, label, expectControlled) {
-  const status = await session.page.evaluate(async id => {
-    const api = game.modules.get(id).api;
-    for (let i = 0; i < 40; i++) {
-      const s = api.swStatus();
-      if (s.controlling || s.reason) break;
-      await new Promise(r => setTimeout(r, 500));
-    }
-    return api.swStatus();
-  }, MODULE_ID);
-  if (expectControlled) check(`${label}: Service Worker controls the page`, status.controlling === true && !status.needsSetup, JSON.stringify({ script: status.script, version: status.version, reason: status.reason }));
-  else check(`${label}: missing bridge file is reported as needing setup`, status.controlling === false && status.needsSetup === true, JSON.stringify({ reason: status.reason, dataRootCopy: status.dataRootCopy }));
-  return status;
-}
-
 /* ---------------------------------------- Run ---------------------------------------- */
 
 const browser = await chromium.launch();
-let restoreBridge = () => {};
 try {
-  if (DATA) {
-    // Start from the "fresh install" state: no bridge file at the Data root.
-    const target = path.join(DATA, BRIDGE);
-    const previous = fs.existsSync(target) ? fs.readFileSync(target) : null;
-    restoreBridge = () => { if (previous) fs.writeFileSync(target, previous); else fs.rmSync(target, { force: true }); };
-    fs.rmSync(target, { force: true });
-  }
-
-  let gm = await join(browser, GM);
+  const gm = await join(browser, GM);
   const info = await checkModuleReady(gm);
-  if (DATA) {
-    await checkServiceWorker(gm, "fresh install", false);
-    await shot(gm.page, "gm-needs-setup");
-    fs.copyFileSync(path.join(MODULE_ROOT, BRIDGE), path.join(DATA, BRIDGE));
-    const after = await gm.page.evaluate(async id => {
-      const mod = await import(foundry.utils.getRoute(`modules/${id}/scripts/p2p/sw-client.mjs`));
-      return mod.recheckServiceWorker();
-    }, MODULE_ID);
-    check("after copying the bridge file, a re-check registers the Service Worker", after?.registered === true && after?.needsSetup === false, JSON.stringify({ script: after?.script, dataRootCopy: after?.dataRootCopy }));
-    await gm.context.close();
-    gm = await join(browser, GM);
-  }
-  await checkServiceWorker(gm, "game master", true);
-  await checkUploads(gm, info.world);
+  await checkCacheActive(gm, "game master");
+  const uploads = await checkUploads(gm, info.world);
+  await checkCache(gm, uploads);
   await checkWindows(gm);
   check("game master: no module errors", moduleErrors(gm).length === 0, moduleErrors(gm).slice(0, 3).join(" | "));
   await shot(gm.page, "gm-final");
 
   for (const name of PLAYERS) {
     const player = await join(browser, name);
-    await player.page.waitForTimeout(3000);
-    await checkServiceWorker(player, name, true);
+    await checkCacheActive(player, name);
+    // Downloading ahead fills the cache while the player does nothing.
+    let files = 0;
+    for (let i = 0; i < 20 && !files; i++) { await player.page.waitForTimeout(2000); files = (await cacheStatus(player)).cachedFiles; }
+    check(`${name}: downloading ahead fills the local cache`, files > 0, `${files} files kept`);
     check(`${name}: no module errors`, moduleErrors(player).length === 0, moduleErrors(player).slice(0, 3).join(" | "));
     await shot(player.page, `player-${name}`);
     await player.context.close();
@@ -226,7 +259,6 @@ try {
 } catch (err) {
   check("smoke test ran to the end", false, String(err?.stack ?? err).slice(0, 600));
 } finally {
-  restoreBridge();
   await browser.close();
 }
 

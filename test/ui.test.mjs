@@ -1,5 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
+import fs from "node:fs";
 import { formatBytes, formatMbps, playerHealth, upcomingScene, readyCue } from "../scripts/ui/format.mjs";
 
 /** The pure helpers of the UI: units on screen, a player's health, and the "everyone is ready" cue. */
@@ -146,4 +147,53 @@ test("live window: a refresh asked by a hook waits while the user is editing, th
   await settle();
   assert.equal(app.renders.length, 3);
   app._onClose({});
+});
+
+/* -------------------------------------------- */
+/*  The local cache block, with the real texts  */
+/* -------------------------------------------- */
+
+/** Foundry's `game.i18n` over a real lang file, so a missing text shows up as the raw key. */
+function useLang(code) {
+  const flat = {};
+  const walk = (node, prefix) => {
+    for (const [k, v] of Object.entries(node)) {
+      if (v && typeof v === "object") walk(v, `${prefix}.${k}`);
+      else flat[`${prefix}.${k}`] = v;
+    }
+  };
+  walk(JSON.parse(fs.readFileSync(new URL(`../lang/${code}.json`, import.meta.url), "utf8")), "");
+  const key = k => k.replace(/^\./, "");
+  const table = Object.fromEntries(Object.entries(flat).map(([k, v]) => [key(k), v]));
+  globalThis.game.i18n = {
+    lang: code,
+    has: k => k in table,
+    localize: k => table[k] ?? k,
+    format: (k, data) => (table[k] ?? k).replace(/\{(\w+)\}/g, (_m, name) => data[name])
+  };
+}
+
+test("local cache block: active shows what is kept, not active says why in one sentence", async () => {
+  await liveApplication();
+  const { describeCache } = await import("../scripts/ui/common.mjs");
+  for (const code of ["en", "pt-BR"]) {
+    useLang(code);
+    const active = describeCache({ active: true, cachedBytes: 3 * 1_048_576, cachedFiles: 12, quotaBytes: 4096 * 1_048_576, persisted: true });
+    assert.equal(active.active, true);
+    assert.equal(active.reason, "", "no reason while it works");
+    assert.equal(active.cachedBytes, "3 MB");
+    assert.equal(active.cachedFiles, "12");
+    assert.equal(active.quota, "4 GB", "the quota the cache really has, not the setting");
+    assert.notEqual(active.persisted, "—");
+    for (const reason of ["off", "insecure", "unsupported", "error"]) {
+      const off = describeCache({ active: false, reason, cachedBytes: 0, cachedFiles: 0, quotaBytes: 0, persisted: null });
+      assert.equal(off.active, false);
+      assert.ok(off.reason.length > 20 && !off.reason.startsWith(reason) && off.reason.includes("."), `${code}: a sentence for "${reason}"`);
+      assert.equal(off.persisted, "—", "unknown stays unknown");
+    }
+  }
+  assert.equal(describeCache({ active: false, reason: "insecure" }, true).reason, "", "the notice of a page without HTTPS already says it");
+  assert.notEqual(describeCache({ active: false, reason: "off" }, true).reason, "", "other reasons are still said");
+  assert.equal(describeCache(undefined), null, "no status, no block");
+  assert.equal(describeCache({ active: false }).reason, "", "an unknown reason is left out, never printed raw");
 });

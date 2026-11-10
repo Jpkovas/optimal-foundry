@@ -2,7 +2,7 @@
   "id": "optimal-foundry",
   "title": "Optimal Foundry",
   "description": "Complete media and network optimization: converts uploads and the world's existing media to WebP/WebM/Opus, preloads during idle time, shares the bandwidth under the GM's control, takes advantage of a CDN and lets players exchange files peer-to-peer.",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "authors": [
     {
       "name": "João Karalkovas",
@@ -11,7 +11,7 @@
   ],
   "url": "https://github.com/Jpkovas/optimal-foundry",
   "manifest": "https://github.com/Jpkovas/optimal-foundry/releases/latest/download/module.json",
-  "download": "https://github.com/Jpkovas/optimal-foundry/releases/download/v0.2.0/module.zip",
+  "download": "https://github.com/Jpkovas/optimal-foundry/releases/download/v0.3.0/module.zip",
   "bugs": "https://github.com/Jpkovas/optimal-foundry/issues",
   "readme": "https://github.com/Jpkovas/optimal-foundry#readme",
   "changelog": "https://github.com/Jpkovas/optimal-foundry/blob/main/CHANGELOG.md",

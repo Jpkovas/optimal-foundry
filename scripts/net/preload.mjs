@@ -7,7 +7,7 @@ import {
   LATER_TIER, askCoordinator, tellCoordinator, serveCoordinator, sceneReady, loadInBackground
 } from "./scheduler.mjs";
 import { initCdnResponder, isLoopbackOrigin } from "./cdn.mjs";
-import { cachedOptimizedUrls, swStatus, abortSwPreloads } from "../p2p/sw-client.mjs";
+import { cachedOptimizedPaths, cacheStatus, fetchMedia } from "./local-cache.mjs";
 import { holderCount, canSeed } from "../p2p/swarm.mjs";
 import { skipByName } from "../media/formats.mjs";
 import { collectDocumentReferences } from "../media/references.mjs";
@@ -16,7 +16,7 @@ import { collectDocumentReferences } from "../media/references.mjs";
  * Idle-time preloading. The active GM keeps one ordered queue of media paths (tiers below) and remembers per user
  * what was already warmed in this session. A client asks for the next batch when its network is idle; the GM
  * charges up to BATCH items to the host-upload bucket and returns them; the client warms them (at most
- * PARALLEL at once) with plain fetches into the HTTP cache / Service Worker and reports the batch in one message.
+ * PARALLEL at once) through the local cache (`fetchMedia`) and reports the batch in one message.
  * A GM on the server's own machine (loopback) does not warm anything: loopback fetches save nothing.
  *
  * The queue is automatic: it covers everything players may need, most likely first, and the host-upload budget,
@@ -51,8 +51,6 @@ const RESERVED_WAIT_MS = 2_000;  // only reserved files left: poll again soon
 const MISSING_TTL_MS = 600_000;  // a 4xx answer keeps a file out of every batch this long
 const HTTP_CACHE_MAX_BYTES = 32 * 1_048_576; // below Chrome-on-Windows (~40 MB) and Firefox (50 MB) entry limits
 const FULL_RATIO = 0.8;          // above this share of cacheQuotaMB, ask the GM to skip the last tier
-const PRELOAD_HEADER = "X-Optimal-Foundry-Preload"; // marks a preload for the Service Worker, which strips it
-const SOURCE_HEADER = "X-Optimal-Foundry-Source";   // set by the Service Worker on what it answers: cache | p2p | net
 const EDGE_HIT = /^(HIT|STALE|REVALIDATED)$/i;      // cf-cache-status: the edge answered without downloading from the host
 const PLAN_LIMIT = 60;           // plan entries kept for the dashboard
 const SCENE_KEYS = ["texture", "ring", "hidden", "path", "background", "foreground", "fog", "playlist",
@@ -79,7 +77,7 @@ const client = {
   started: false,
   disabled: false,
   looping: false,
-  have: new Set(),      // paths warmed (or found in the SW cache) during this session
+  have: new Set(),      // paths warmed (or found in the local cache) during this session
   synced: false,        // the GM holds our `have` set
   active: new Set(),    // paths being warmed right now
   done: 0,
@@ -289,7 +287,7 @@ async function requestNext() {
 function cacheNearlyFull() {
   try {
     const quota = Number(getSetting("cacheQuotaMB")) * 1_048_576;
-    return quota > 0 && (Number(swStatus().cachedBytes) || 0) >= FULL_RATIO * quota;
+    return quota > 0 && (Number(cacheStatus().cachedBytes) || 0) >= FULL_RATIO * quota;
   } catch { return false; }
 }
 
@@ -314,10 +312,10 @@ async function warmBatch(items) {
 async function warmItem(item) {
   const src = String(item.src);
   const url = new URL(foundry.utils.getRoute(src), window.location.origin).href;
-  // The Service Worker keeps every media file it serves in Cache Storage, whatever its size; without it the file
+  // The local cache keeps every media file it serves in Cache Storage, whatever its size; without it the file
   // lands in the HTTP cache, which drops big entries.
   const limit = effectiveNetwork().preloadMaxBytes;
-  const maxBytes = swStatus().controlling ? limit : Math.min(limit, HTTP_CACHE_MAX_BYTES);
+  const maxBytes = cacheStatus().active ? limit : Math.min(limit, HTTP_CACHE_MAX_BYTES);
   let progress = null;
   client.active.add(src);
   try {
@@ -337,10 +335,10 @@ async function warmItem(item) {
 }
 
 /**
- * Fetch and drain the body so the HTTP cache and the Service Worker keep the whole file. The request carries
- * PRELOAD_HEADER, which lets the Service Worker fetch it at low priority and abort it when the game needs the link.
- * `bytes` is what the host uploaded for the file as far as this page can tell: nothing when the Service Worker
- * answered from its cache or from a peer (SOURCE_HEADER), or when the CDN's edge already held it.
+ * Fetch one file through the local cache and drain the body, so the whole file is kept. The cache runs the request
+ * at low priority and stops it with `signal`.
+ * `bytes` is what the host uploaded for the file as far as this page can tell: nothing when the cache answered
+ * (or another player did), or when the CDN's edge already held it.
  * Exported for the tests.
  * @param {string} url
  * @param {AbortSignal} [signal]
@@ -349,19 +347,23 @@ async function warmItem(item) {
  * @returns {Promise<{ok: boolean, bytes: number, reason?: string}>}
  */
 export async function warm(url, signal, maxBytes, progress) {
-  const res = await fetch(url, { signal, credentials: "same-origin", priority: "low", headers: { [PRELOAD_HEADER]: "1" } });
+  // Giving up on a file that is too large must also end its download, which the cache would otherwise finish.
+  const giveUp = new AbortController();
+  const { response: res, source, edge } = await fetchMedia(url, {
+    signal: signal ? AbortSignal.any([signal, giveUp.signal]) : giveUp.signal, preload: true
+  });
   if (!res.ok) {
     res.body?.cancel().catch(() => {});
     // Overload (tunnel 429/5xx) is transient: report an error so the file is offered again later.
     if (res.status === 429 || res.status >= 500) throw new Error(`HTTP ${res.status} for ${url}`);
     return { ok: false, bytes: 0, reason: `HTTP ${res.status}` };
   }
-  const source = res.headers.get(SOURCE_HEADER);
-  const offHost = source === "cache" || source === "p2p" || EDGE_HIT.test(res.headers.get("cf-cache-status") ?? "");
+  const offHost = source === "cache" || source === "p2p" || EDGE_HIT.test(edge ?? "");
   if (progress) progress.offHost = offHost;
   const declared = Number(res.headers.get("content-length"));
   if (Number.isFinite(maxBytes) && declared > maxBytes) {
-    discard(res.body, url);
+    giveUp.abort();
+    discard(res.body);
     return { ok: false, bytes: 0, reason: "tooLarge" };
   }
   if (progress && declared > 0) progress.total = declared;
@@ -376,7 +378,8 @@ export async function warm(url, signal, maxBytes, progress) {
         bytes += value.byteLength;
         if (progress) progress.received = bytes;
         if (Number.isFinite(maxBytes) && bytes > maxBytes) {
-          await discard(reader, url);
+          giveUp.abort();
+          await discard(reader);
           return { ok: false, bytes: offHost ? 0 : bytes, reason: "tooLarge" };
         }
       }
@@ -384,13 +387,13 @@ export async function warm(url, signal, maxBytes, progress) {
       reader.releaseLock?.();
     }
   }
-  // The Service Worker says where its answer came from; without one, Resource Timing knows what the network moved.
-  return { ok: true, bytes: offHost ? 0 : source ? bytes : transferredBytes(url, bytes) };
+  // Through the local cache `bytes` is what the server sent. Without it the browser's HTTP cache may have answered,
+  // and Resource Timing knows what the network moved.
+  return { ok: true, bytes: offHost ? 0 : cacheStatus().active ? bytes : transferredBytes(url, bytes) };
 }
 
-/** Stop reading a file that will not be kept, and the Service Worker's own download of it. */
-function discard(stream, url) {
-  try { abortSwPreloads([url]); } catch { /* no worker to tell */ }
+/** Stop reading a file that will not be kept. */
+function discard(stream) {
   return stream?.cancel().catch(() => {});
 }
 
@@ -441,11 +444,11 @@ async function maybePredecode() {
 /*  Local "have" set                            */
 /* -------------------------------------------- */
 
-/** The SW's Cache Storage is authoritative for optimized files it serves; everything else starts unknown. */
+/** The local cache's Cache Storage is authoritative for optimized files it serves; everything else starts unknown. */
 async function seedHave() {
-  if (!globalThis.navigator?.serviceWorker?.controller) return;
-  try { for (const p of (await cachedOptimizedUrls()).slice(-HAVE_MAX)) client.have.add(p); }
-  catch (err) { warn("could not read the SW cache", err); }
+  if (!cacheStatus().active) return;
+  try { for (const p of (await cachedOptimizedPaths()).slice(-HAVE_MAX)) client.have.add(p); }
+  catch (err) { warn("could not read the local cache", err); }
 }
 
 function remember(src) {

@@ -1,11 +1,11 @@
 import { MODULE_ID, warn } from "../constants.mjs";
 import { setSetting, settingDef, effectiveNetwork } from "../settings.mjs";
 import { preloadStatus } from "../net/preload.mjs";
-import { swStatus, clearDeviceCache } from "../p2p/sw-client.mjs";
+import { cacheStatus, clearDeviceCache } from "../net/local-cache.mjs";
 import { swarmStatus } from "../p2p/swarm.mjs";
 import {
-  TEMPLATE, L, call, setting, num, fmtBytes, fmtCount, codeLabel, describeSw, describeSwarm, describeSetup, describeSharing,
-  recheckSetup, warnOnce, LiveApplication
+  TEMPLATE, L, call, setting, num, fmtBytes, fmtCount, codeLabel, describeCache, describeSwarm, describeSharing,
+  warnOnce, LiveApplication
 } from "./common.mjs";
 import { openConnectionChoice, needsConnectionChoice } from "./first-run.mjs";
 
@@ -36,13 +36,12 @@ export class ConnectionPanel extends LiveApplication {
     position: { width: 460, height: "auto" },
     actions: {
       clearCache: ConnectionPanel.#onClearCache,
-      choose: () => openConnectionChoice(),
-      recheckSw: ConnectionPanel.#onRecheck
+      choose: () => openConnectionChoice()
     }
   };
 
   static PARTS = {
-    body: { template: TEMPLATE("connection"), templates: [TEMPLATE("setup")] }
+    body: { template: TEMPLATE("connection") }
   };
 
   #clearing = false;
@@ -65,8 +64,8 @@ export class ConnectionPanel extends LiveApplication {
   /** @override */
   async _prepareContext(options) {
     const context = await super._prepareContext(options);
-    const [sw, swarm, preload, eff] = await Promise.all([
-      call("swStatus", swStatus), call("swarmStatus", swarmStatus), call("preloadStatus", preloadStatus),
+    const [cache, swarm, preload, eff] = await Promise.all([
+      call("cacheStatus", cacheStatus), call("swarmStatus", swarmStatus), call("preloadStatus", preloadStatus),
       call("effectiveNetwork", effectiveNetwork)
     ]);
     const cdnStatus = setting("cdnStatus", {}) ?? {};
@@ -75,19 +74,16 @@ export class ConnectionPanel extends LiveApplication {
     const pendingChoice = needsConnectionChoice(eff);
     const world = describeSharing(eff, null, null);
     // Said elsewhere in this window: the first-run note with its button, the notice of a page without HTTPS, and
-    // the local cache that still waits for the game master.
+    // the reason the local cache is not active (sharing needs it).
     const saidAbove = (pendingChoice && (swarm?.reason === "notChosen")) || (swarm?.reason === "insecure")
-      || (!!sw?.needsSetup && (swarm?.reason === "noCache"));
-    const s = describeSw(sw);
+      || ((cache?.active === false) && (swarm?.reason === "noCache"));
+    const c = describeCache(cache, !secure);
     const p = describeSwarm(swarm);
     const scope = setting("preloadScope", "all");
     return Object.assign(context, {
       blocker: secure ? "" : L("Blocker.insecure"),
-      setup: describeSetup(sw),
-      // The setup step is the game master's: a player only learns that the local cache is not on yet.
-      cacheNote: (secure && !game.user.isGM && sw?.needsSetup) ? L("Connection.CacheNotEnabled") : "",
-      sw: s,
-      cache: s ? L("Connection.CacheUsage", { used: s.cachedBytes, quota: s.quota, files: s.cachedFiles }) : "—",
+      cache: c,
+      cacheUsage: c ? L("Connection.CacheUsage", { used: c.cachedBytes, quota: c.quota, files: c.cachedFiles }) : "",
       p2p: {
         on: !!p?.enabled,
         label: p?.enabled ? L("Connection.P2POn", { peers: p.openPeers, up: p.up, down: p.down }) : L("Dashboard.Common.Off"),
@@ -132,11 +128,6 @@ export class ConnectionPanel extends LiveApplication {
       ui.notifications.error(L("Dashboard.Notify.ActionFailed", { error: err?.message ?? String(err) }));
     }
     this._invalidateParts(); // the input may show a value that was clamped or not saved
-    this._refresh(true);
-  }
-
-  static async #onRecheck(_event, target) {
-    await recheckSetup(target);
     this._refresh(true);
   }
 

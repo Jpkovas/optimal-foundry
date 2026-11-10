@@ -2,7 +2,7 @@ import { MODULE_ID, SOCKET, log, warn } from "../constants.mjs";
 import { effectiveNetwork } from "../settings.mjs";
 import { on, emit, request, activeGM, isCoordinator, MSG } from "../socket.mjs";
 import { isLocalOrigin, isLoopbackOrigin } from "./cdn.mjs";
-import { abortSwPreloads, swStatus } from "../p2p/sw-client.mjs";
+import { cacheStatus } from "./local-cache.mjs";
 import { swarmStatus } from "../p2p/swarm.mjs";
 
 /**
@@ -96,9 +96,9 @@ const now = () => performance.now();
 export function initScheduler() {
   try {
     installWrappers();
-    // PIXI's default worker image loader fetches textures off the main thread, out of sight of Resource
-    // Timing and dependent on blob-worker Service Worker inheritance. Main-thread fetches still decode
-    // asynchronously through createImageBitmap(blob).
+    // PIXI's default worker image loader fetches textures inside a worker, where the page's global fetch (the
+    // local cache's wrapper) does not exist: those images would bypass the cache and Resource Timing. Main-thread
+    // fetches still decode asynchronously through createImageBitmap(blob).
     try { PIXI.Assets.setPreferences({ preferWorkers: false }); } catch (err) { warn("could not set PIXI preferences", err); }
     observeResources();
     registerHandlers();
@@ -117,7 +117,7 @@ export function initScheduler() {
 
 /**
  * Snapshot for the dashboard and the API. Only on the coordinating GM: `clients` (per user, with `secure`, `cache`
- * and `p2p`: HTTPS or localhost, a Service Worker controls the page, the browser can share right now) and `budget`
+ * and `p2p`: HTTPS or localhost, the local cache is active, the browser can share right now) and `budget`
  * `{rateBytesPerSec, ceilingBytesPerSec, slowed, rttMs}`: the preload rate in force, the ceiling from the settings,
  * whether round trips pushed the rate below it, and the median recent round trip of the remote clients (null
  * before the first one).
@@ -147,8 +147,8 @@ export function networkStatus() {
 /**
  * Run `fn({signal, progress})` under the network manager.
  * - urgent: starts at once, counted, aborts running preloads.
- * - preload: waits for an idle window, then runs; an urgent load aborts it (the page's fetch and the Service
- *   Worker's own download) unless `progress.received` is past half of `progress.total`.
+ * - preload: waits for an idle window, then runs; an urgent load aborts it (through the `signal` it was given)
+ *   unless `progress.received` is past half of `progress.total`.
  * The budget is charged by the coordinator before the item is handed out, so nothing is asked here.
  * @param {(ctx: {signal?: AbortSignal, progress?: {total: number, received: number}}) => Promise<any>} fn
  * @param {{priority?: "urgent"|"preload", url?: string, signal?: AbortSignal}} [options]
@@ -306,7 +306,7 @@ function textureCached(src) {
 /**
  * Core retries a failed texture only with a cache-bust URL, which it refuses for same-origin files, so a transient
  * tunnel error (429, 5xx, reset) leaves a default icon until the next redraw. Retry same-origin loads up to twice;
- * a HEAD probe (no-store, so the SW does not answer it) gives up at once on a real 4xx. Waits run outside runUrgent.
+ * a HEAD probe (never taken over by the local cache) gives up at once on a real 4xx. Waits run outside runUrgent.
  */
 async function loadWithRetry(wrapped, src, args) {
   if (!local.turn.granted) await waitTurn();
@@ -449,18 +449,16 @@ function tick() {
 /*  Preload lane                                */
 /* -------------------------------------------- */
 
-/** Abort running preloads, except those past half of their bytes: the page's fetch and the Service Worker's download. */
+/**
+ * Abort running preloads, except those past half of their bytes. The local cache runs in this page: aborting a
+ * preload's signal ends its download (unless the game started waiting for the same file meanwhile).
+ */
 function abortPreloads() {
-  const urls = [];
   for (const task of local.running) {
     if (task.controller.signal.aborted) continue;
     if (task.total > 0 && task.received >= task.total / 2) continue;
     task.controller.abort(abortError("urgent load"));
-    if (task.url) urls.push(task.url);
   }
-  if (!urls.length) return;
-  // The worker downloads on its own behalf: aborting the page's fetch alone would leave that download running.
-  try { abortSwPreloads(urls); } catch (err) { warn("could not abort the Service Worker's preloads", err); }
 }
 
 /* -------------------------------------------- */
@@ -551,7 +549,7 @@ function statusPayload(extra = {}) {
     p2p: false
   };
   try {
-    payload.cache = !!swStatus().controlling;
+    payload.cache = !!cacheStatus().active;
     payload.p2p = !!swarmStatus().enabled;
   } catch { /* not started yet */ }
   for (const fn of local.statusProviders) {

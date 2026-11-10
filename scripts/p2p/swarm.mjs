@@ -3,7 +3,7 @@ import { getSetting, effectiveNetwork } from "../settings.mjs";
 import { on, emit, request, activeGM, isCoordinator, MSG } from "../socket.mjs";
 import { findByOptimized, normalizePath } from "../library.mjs";
 import { isLoopbackOrigin } from "../net/cdn.mjs";
-import { cachedOptimizedUrls, readCached, sendSwConfig } from "./sw-client.mjs";
+import { cachedOptimizedPaths, readCached, cacheStatus } from "../net/local-cache.mjs";
 
 /**
  * P2P swarm over native RTCPeerConnection + one negotiated DataChannel per peer pair.
@@ -17,12 +17,12 @@ import { cachedOptimizedUrls, readCached, sendSwConfig } from "./sw-client.mjs";
  * messages go straight to the local tracker (the socket never echoes).
  *
  * On or off: `blocker()` lists what keeps a browser out of the swarm (P2P off for the world or behind a CDN, the
- * player has not chosen yet or opted out, the server's own machine, no HTTPS, no WebRTC, no Service Worker
- * controlling the page). A browser that is out opens no peer connection, answers no signaling and announces
- * nothing; it switches live when one of those settings or the page's controller changes.
+ * player has not chosen yet or opted out, the server's own machine, no HTTPS, no WebRTC, no local cache). A
+ * browser that is out opens no peer connection, answers no signaling and announces nothing; it switches live when
+ * one of those settings or the local cache's state changes.
  *
  * Source selection: while the game waits on media (`urgent`), only already-open peers are used. Background
- * (preload) fetches may wait for ICE; progress pings keep the SW from timing out meanwhile.
+ * (preload) fetches may wait for ICE; progress pings keep the local cache's inactivity timer from firing meanwhile.
  * At most MAX_DOWNLOADS files download at once. A seeder that answers `busy` is dropped for that file at once on an
  * urgent load; a preload lane backs off and asks again. Pieces no peer delivered come from the host by one Range.
  * Endgame: an idle lane duplicates the oldest piece in flight from a single peer; the first copy wins.
@@ -136,8 +136,8 @@ export function initSwarm() {
       else if (key === "iceServers") iceServers = null;
     });
     Hooks.on(`${MODULE_ID}.urgentLoad`, onUrgentLoad);
-    // P2P fetches and serves through the worker's cache: follow the worker taking or losing this page.
-    globalThis.navigator?.serviceWorker?.addEventListener("controllerchange", evaluate);
+    // P2P fetches and serves through the local cache: follow it turning on or failing.
+    Hooks.on(`${MODULE_ID}.localCacheChanged`, evaluate);
     tickTimer = setInterval(tick, TICK_MS);
     evaluate();
     if (isCoordinator()) emit(MSG.P2P_RESYNC, {});
@@ -244,7 +244,7 @@ export function swarmOverview() {
   return out;
 }
 
-/** Called by sw-client when files land in Cache Storage. Accepts URLs or paths. */
+/** Called by local-cache.mjs when files land in Cache Storage. Accepts URLs or paths. */
 export function noteCached(urls) {
   if (!S.enabled) return;
   for (const u of urls) {
@@ -256,7 +256,7 @@ export function noteCached(urls) {
   scheduleAnnounce();
 }
 
-/** Called by sw-client when files are evicted from Cache Storage. */
+/** Called by local-cache.mjs when files are evicted from Cache Storage. */
 export function noteEvicted(urls) {
   for (const u of urls) {
     const p = normalizePath(u);
@@ -282,7 +282,7 @@ function allowLocal() {
  * - "optOut": this browser's `p2pParticipate` is off.
  * - "local": the browser runs on the server's own machine, so its upload is the server's upload.
  * - "insecure", "noWebRTC", "noCrypto": the browser cannot do it.
- * - "noCache": no Service Worker controls the page; P2P only fetches and serves through the worker's cache.
+ * - "noCache": the local cache is not active in this browser; P2P only fetches and serves through it.
  */
 function blocker() {
   if (!effectiveNetwork().p2p) return getSetting("p2pEnabled") ? "cdn" : "disabled";
@@ -292,11 +292,11 @@ function blocker() {
   if (!window.isSecureContext) return "insecure";
   if (typeof RTCPeerConnection !== "function") return "noWebRTC";
   if (!globalThis.crypto?.subtle) return "noCrypto";
-  if (!getSetting("serviceWorker") || !("caches" in globalThis) || !globalThis.navigator?.serviceWorker?.controller) return "noCache";
+  if (!cacheStatus().active) return "noCache";
   return null;
 }
 
-/** Bring the swarm in line with the settings and the page's Service Worker. */
+/** Bring the swarm in line with the settings and the local cache. */
 function evaluate() {
   try {
     const reason = blocker();
@@ -312,7 +312,6 @@ function enable() {
   S.enabled = true;
   S.reason = undefined;
   scheduleResync(1000);
-  sendSwConfig();
 }
 
 function disable(reason) {
@@ -324,7 +323,6 @@ function disable(reason) {
   pendingDrop.clear();
   clearTimeout(resyncTimer);
   if (was) announce({ off: true });
-  sendSwConfig();
 }
 
 /* ---------------------------------------- Announcements ---------------------------------------- */
@@ -357,7 +355,7 @@ function scheduleResync(delay) {
 async function resync() {
   if (!S.enabled) return;
   try {
-    const paths = await cachedOptimizedUrls();
+    const paths = await cachedOptimizedPaths();
     announce({ add: paths.slice(0, MAX_LIST), drop: [], reset: true });
   } catch (err) {
     warn("P2P announce failed", err);
@@ -398,7 +396,7 @@ function dropHolder(path, userId) {
   if (!h.size) holders.delete(path);
 }
 
-/** That browser left the swarm (opted out, lost its Service Worker, P2P turned off): it holds and links nothing. */
+/** That browser left the swarm (opted out, lost its local cache, P2P turned off): it holds and links nothing. */
 function trackerLeft(userId) {
   const set = byUser.get(userId);
   if (set) for (const p of set) dropHolder(p, userId);
@@ -565,7 +563,7 @@ async function download(path, signal, onProgress, urgent) {
       launch();
       if (!workers.size) break;
       await Promise.race([...workers.keys(), dl.changed(), sleep(dl.urgent ? URGENT_CHECK_MS : CONNECT_PING_MS)]);
-      // A legitimate ICE handshake can take up to ICE_TIMEOUT_MS: keep the SW's inactivity timer from firing.
+      // A legitimate ICE handshake can take up to ICE_TIMEOUT_MS: keep the local cache's inactivity timer from firing.
       if ([...workers.values()].some(id => peers.get(id)?.state === "connecting")) dl.progress();
       if (dl.urgent && dl.tooSlow()) dl.toHost();
     }
@@ -712,7 +710,7 @@ async function work(dl, peer) {
           // Urgent: try the next holder now. Preload: the seeder's cap frees within a piece time, and giving up
           // here would throw away the pieces this peer already delivered.
           if (dl.urgent || ++busy > BUSY_RETRIES) { refused = true; dl.pulse(); return; }
-          dl.progress(); // keep the SW's inactivity timer from firing while we wait
+          dl.progress(); // keep the local cache's inactivity timer from firing while we wait
           await sleep(BUSY_BACKOFF_MS * busy);
           continue;
         }
@@ -736,7 +734,7 @@ async function work(dl, peer) {
  * One Range request to the host for the span of pieces no peer delivered. Pieces inside the span that peers did
  * deliver are overwritten with the host's identical bytes; the caller still checks the whole file's SHA-256.
  * The body is read as it arrives, with a progress ping per chunk: a long fill must not look like silence to the
- * Service Worker, which would give up and download the whole file again.
+ * local cache's inactivity timer, which would give up and download the whole file again.
  */
 async function fillFromHost(dl) {
   let first = -1, last = -1;

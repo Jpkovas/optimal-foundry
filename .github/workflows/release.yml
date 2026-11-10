@@ -17,7 +17,7 @@ jobs:
       TAG: ${{ github.event.release.tag_name }}
       REPO: ${{ github.repository }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Check that the tag matches module.json
         run: |
@@ -28,7 +28,7 @@ jobs:
           [ "$download" = "https://github.com/$REPO/releases/download/$TAG/module.zip" ] || { echo "::error::module.json download is $download"; exit 1; }
           [ "$manifest" = "https://github.com/$REPO/releases/latest/download/module.json" ] || { echo "::error::module.json manifest is $manifest"; exit 1; }
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: lts/*
 
@@ -37,7 +37,7 @@ jobs:
 
       - name: Build module.zip (only what Foundry loads)
         run: |
-          zip -r -X module.zip module.json LICENSE README.md sw.js optimal-foundry-sw.js lang scripts styles templates vendor -x '*.DS_Store' 'vendor/*.d.ts'
+          zip -r -X module.zip module.json LICENSE README.md lang scripts styles templates vendor -x '*.DS_Store' 'vendor/*.d.ts'
           unzip -l module.zip
 
       - name: Attach to the release

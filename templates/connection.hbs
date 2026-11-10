@@ -1,15 +1,13 @@
 <section class="of-connection-body">
     {{#if blocker}}<p class="of-note warn"><i class="fa-solid fa-lock-open" inert></i> {{blocker}}</p>{{/if}}
-    {{#if setup}}{{> "modules/optimal-foundry/templates/setup.hbs" setup}}{{/if}}
-    {{#if cacheNote}}<p class="of-note">{{cacheNote}}</p>{{/if}}
 
     <h3 class="of-title"><i class="fa-solid fa-laptop" inert></i> {{localize "OPTIMALFOUNDRY.Connection.Status"}}</h3>
     <dl class="of-kv">
         <dt>{{localize "OPTIMALFOUNDRY.Connection.Cache"}}</dt>
         <dd>
-            {{#if sw}}
-            <span class="of-chip {{#if sw.isControlling}}ok{{else}}idle{{/if}}">{{#if sw.isControlling}}{{localize "OPTIMALFOUNDRY.Dashboard.P2P.SwActive"}}{{else}}{{localize "OPTIMALFOUNDRY.Dashboard.P2P.SwInactive"}}{{/if}}</span>
-            {{#if sw.isControlling}}<span class="of-muted">{{cache}}</span>{{/if}}
+            {{#if cache}}
+            <span class="of-chip {{#if cache.active}}ok{{else}}idle{{/if}}">{{#if cache.active}}{{localize "OPTIMALFOUNDRY.Dashboard.P2P.CacheActive"}}{{else}}{{localize "OPTIMALFOUNDRY.Dashboard.P2P.CacheInactive"}}{{/if}}</span>
+            {{#if cache.active}}<span class="of-muted">{{cacheUsage}}</span>{{/if}}
             {{else}}—{{/if}}
         </dd>
         <dt>{{localize "OPTIMALFOUNDRY.Sharing.Title"}}</dt>
@@ -19,7 +17,7 @@
         <dt>{{localize "OPTIMALFOUNDRY.Dashboard.Network.Cdn"}}</dt>
         <dd><span class="of-chip {{#if cdn.on}}ok{{else}}idle{{/if}}">{{cdn.label}}</span>{{#if cdn.status}} <span class="of-muted">{{cdn.status}}</span>{{/if}}</dd>
     </dl>
-    {{#if sw.reason}}<p class="of-note">{{sw.reason}}</p>{{/if}}
+    {{#if cache.reason}}<p class="of-note">{{cache.reason}}</p>{{/if}}
     {{#if p2p.reason}}<p class="of-note">{{p2p.reason}}</p>{{/if}}
     {{#if pendingChoice}}
     <div class="of-note of-note-row warn">

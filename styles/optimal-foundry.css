@@ -696,22 +696,7 @@ body.theme-light .optimal-foundry:not(.theme-dark),
 .optimal-foundry .of-switch > span { display: flex; flex-direction: column; gap: 0.1rem; min-width: 0; }
 .optimal-foundry .of-switch small { font-size: var(--font-size-11, 0.75rem); color: var(--of-muted); }
 
-/* ---------- "Finish setup" step of the local cache (welcome screen, dashboard, My connection) ---------- */
-
-.optimal-foundry .of-setup-slot:empty { display: none; }
-.optimal-foundry .of-setup {
-  display: flex;
-  flex-direction: column;
-  gap: 0.3rem;
-  padding: 0.45rem 0.6rem;
-  border: 1px solid var(--of-warn);
-  border-left-width: 3px;
-  border-radius: 4px;
-  background: var(--of-surface);
-}
-.optimal-foundry .of-setup p { margin: 0; }
-.optimal-foundry .of-setup-title { color: var(--of-warn); }
-/* A sentence with its one action beside it (setup step, heavy files waiting, a player's pending choice). */
+/* A sentence with its one action beside it (heavy files waiting, a player's pending choice). */
 .optimal-foundry .of-note-row {
   display: flex;
   align-items: flex-start;
@@ -719,8 +704,6 @@ body.theme-light .optimal-foundry:not(.theme-dark),
 }
 .optimal-foundry .of-note-row > p { flex: 1 1 auto; min-width: 0; margin: 0; }
 .optimal-foundry .of-note-row > button { flex: 0 0 auto; width: auto; white-space: nowrap; }
-.optimal-foundry .of-setup summary { cursor: pointer; color: var(--of-muted); }
-.optimal-foundry .of-setup .of-kv { grid-template-columns: max-content 1fr; margin-top: 0.25rem; }
 
 /* ---------- First-run card of a player (shares the Settings window layout) ---------- */
 

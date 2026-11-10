@@ -130,9 +130,9 @@
         "Name": "Players share files with each other",
         "Hint": "Whoever already has a file sends it straight to the other players, sparing your connection. Needs HTTPS and the local cache; behind a CDN it is not used. Players who share see each other's IP address, and each one chooses whether to take part."
       },
-      "serviceWorker": {
+      "localCache": {
         "Name": "Keep files in the browser",
-        "Hint": "Each player keeps the light versions in their browser and does not download them again next session. Needs HTTPS (or localhost)."
+        "Hint": "Each player's browser keeps the light versions of images, videos and sounds and does not download them again next session. It turns itself on in every browser on HTTPS (or localhost): nothing to install or copy."
       },
       "iceServers": {
         "Name": "Connection servers (STUN/TURN)",
@@ -300,13 +300,11 @@
         "BudgetSlowed": "Downloading ahead is slowed down right now ({rate} instead of up to {ceiling}): the connection is answering slowly ({rtt} ms), so the module leaves room for the game."
       },
       "P2P": {
-        "ServiceWorker": "Local cache",
-        "SwActive": "Cache active",
-        "SwInactive": "No cache",
-        "Supported": "This browser supports it",
-        "Registered": "Installed",
-        "Controlling": "Active on this page",
         "Cache": "Cached files",
+        "LocalCache": "Local cache",
+        "CacheActive": "Cache active",
+        "CacheInactive": "No cache",
+        "Persisted": "Protected from the browser's own cleanup",
         "Swarm": "This browser's sharing",
         "PeersCount": "{count} connection(s)",
         "Sent": "Sent",
@@ -546,25 +544,10 @@
       "NoPlayer": "Optimal Foundry: no player is online to measure the CDN. Try again with a player connected.",
       "ProbeFailed": "Optimal Foundry: the CDN measurement failed. See the console."
     },
-    "Sw": {
-      "Version": "Version",
-      "OutdatedBadge": "outdated",
-      "Outdated": "Optimal Foundry: the file optimal-foundry-sw.js in Foundry's Data folder is a copy from an older version of the module (v{version}, expected v{expected}). Replace it with the bridge file of the same name from the module's folder (Data/modules/optimal-foundry); after that, module updates need no new copy.",
-      "OutdatedServer": "Optimal Foundry: the local cache is still running an older version (v{version}, expected v{expected}) and the server offered no newer one. Reload the page; if this message comes back, the server or a CDN in front of it is still handing out an old modules/optimal-foundry/sw.js.",
-      "Persisted": "Persistent storage"
-    },
     "Preload": {
       "GMOnly": "Only the GM can mark upcoming scenes."
     },
     "P2P": {
-      "SwReason": {
-        "insecure": "The local cache needs HTTPS (or localhost).",
-        "unsupported": "This browser cannot keep a local cache.",
-        "scopeDenied": "The local cache could not start: the module's bridge file is not in Foundry's Data folder.",
-        "notFound": "The local cache could not start: the module's file was not found on the server.",
-        "notActive": "The local cache was installed but did not start in time. Reload the page.",
-        "error": "The local cache failed to start. See the console."
-      },
       "SwarmReason": {
         "disabled": "Sharing is turned off in the module's settings.",
         "cdn": "The game is behind a CDN, which already delivers the files quickly, so players do not send files to each other.",
@@ -573,7 +556,7 @@
         "insecure": "Sharing needs HTTPS (or localhost).",
         "noWebRTC": "This browser cannot open direct connections to other players.",
         "noCrypto": "This browser cannot check the files it would receive.",
-        "noCache": "The local cache is not active in this browser, and sharing needs it.",
+        "noCache": "Sharing needs the local cache, and it is not active in this browser (the browser does not support it, or it is turned off in this world's settings).",
         "error": "Sharing failed to start. See the console.",
         "local": "This browser runs on the server's own computer, so it stays out of sharing on purpose: what it sent would use the server's own connection."
       },
@@ -592,6 +575,12 @@
         "error": "the browser refused to open the connection"
       }
     },
+    "CacheReason": {
+      "off": "The game master turned the local cache off for this world, so files are downloaded again every session and players cannot share them.",
+      "insecure": "The local cache needs HTTPS (or localhost). On this page files are downloaded again every session and players cannot share them.",
+      "unsupported": "This browser does not support the local cache. Files are downloaded again every session and cannot be shared.",
+      "error": "The local cache failed to start. See the console."
+    },
     "Connection": {
       "Title": "My connection",
       "Menu": {
@@ -609,7 +598,6 @@
       "ClearCache": "Clear this device's cache",
       "ClearCacheConfirm": "Delete the optimized files saved in this browser? They are downloaded again when needed.",
       "ClearCacheDone": "Optimal Foundry: cache cleared ({size} freed).",
-      "CacheNotEnabled": "The game master has not turned on the local cache on this server yet. Until then, files are downloaded again each session and players cannot share them.",
       "NotChosen": "You have not answered this browser's first questions yet. Until you do, it shares nothing with the other players.",
       "Choose": "Choose"
     },
@@ -805,20 +793,6 @@
         "tracker": "A small status box over the map."
       }
     },
-    "Setup": {
-      "Title": "One step left: turn on the local cache",
-      "Missing": "The local cache (and sharing between players) cannot start until one small file of the module, the bridge file, is in Foundry's Data folder.",
-      "Stale": "The file optimal-foundry-sw.js in Foundry's Data folder is from an older version of the module and must be replaced by the new one.",
-      "How": "Copy the file optimal-foundry-sw.js from the module's folder (Data/modules/optimal-foundry) into the Data folder itself, next to the modules and worlds folders, replacing the file if it is already there. Then click Check again.",
-      "Check": "Check again",
-      "Where": "Where is the Data folder?",
-      "WhereNote": "These are the usual places. If you chose another folder when installing Foundry, or use a hosting service, look for the folder that holds modules and worlds.",
-      "Done": "Optimal Foundry: the local cache is on.",
-      "StillMissing": "Optimal Foundry: the file was not found yet. Check that optimal-foundry-sw.js is in the Data folder itself, with exactly that name.",
-      "StillStale": "Optimal Foundry: the file in the Data folder is still the old one. Replace it with the one from the module's folder.",
-      "Short": "Local cache: one step left",
-      "Finish": "Finish"
-    },
     "Blocker": {
       "insecure": "This page is not on HTTPS (nor on localhost), so the browser does not allow converting files, the local cache or sharing between players here. Downloading ahead and the network control still work. To use everything, open the world through an https:// address, or through localhost on the server's own computer.",
       "unsupported": "This browser cannot convert files. Use an up-to-date Chrome, Edge or Firefox, or the Foundry app."
@@ -836,7 +810,7 @@
       "ShareNo": "sharing: off ({reason})",
       "Blocker": {
         "https": "the page is not on HTTPS",
-        "cache": "the local cache is not active there",
+        "cache": "the local cache is not active there (no HTTPS, no browser support, or turned off)",
         "local": "on the server's own computer, kept out on purpose",
         "choice": "turned off there, or the player has not chosen yet"
       }
@@ -853,7 +827,7 @@
       "Moved": "Passed between players",
       "Why": {
         "https": "The players' page is not on HTTPS, and sharing needs it.",
-        "cache": "The local cache is not active in the players' browsers, and sharing needs it.",
+        "cache": "The local cache is not active in the players' browsers (a page without HTTPS, a browser without support, or turned off in this world's settings), and sharing needs it.",
         "choice": "The players turned it off, or have not chosen yet (each one is asked the first time they enter).",
         "local": "The players are on the server's own computer, so they stay out on purpose."
       }

@@ -6,8 +6,8 @@ import { fileURLToPath } from "node:url";
 
 /**
  * Checks on the files themselves, free of Foundry: what a release would ship broken without anyone running it.
- * Lang files in step, every key the code names present, the two Service Worker versions equal, the manifest's paths
- * on disk, the bridge file in place, and everything the module loads at runtime inside the release zip.
+ * Lang files in step, every key the code names present, nothing left of the old Service Worker, the manifest's
+ * paths on disk, and everything the module loads at runtime inside the release zip.
  */
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
@@ -43,7 +43,7 @@ function lookup(key) {
   return key.split(".").reduce((node, part) => (node && typeof node === "object" ? node[part] : undefined), lang.en);
 }
 
-const SOURCES = [...walk("scripts", [".mjs"]), ...walk("templates", [".hbs"]), "sw.js"];
+const SOURCES = [...walk("scripts", [".mjs"]), ...walk("templates", [".hbs"])];
 
 test("lang: both files have the same keys", () => {
   const [en, pt] = LANGS.map(l => Object.keys(flat[l]).sort());
@@ -114,18 +114,28 @@ test("lang: every setting the UI shows has a name, a hint and its choices", asyn
   }
 });
 
-test("service worker: sw.js and its page side carry the same version", () => {
-  const worker = read("sw.js").match(/^const VERSION = "([^"]+)";/m)?.[1];
-  const page = read("scripts/p2p/sw-client.mjs").match(/^const SW_VERSION = "([^"]+)";/m)?.[1];
-  assert.ok(worker, "VERSION not found in sw.js");
-  assert.equal(page, worker);
+// The only place that may still name the old worker's files: it unregisters the ones 0.1.0 and 0.2.0 left in browsers.
+const OLD_WORKER_CLEANUP = "scripts/net/local-cache.mjs";
+
+test("local cache: nothing is left of the Service Worker", () => {
+  assert.ok(!exists("sw.js") && !exists("optimal-foundry-sw.js"), "the worker and its bridge file are gone from the module root");
+  const found = [];
+  for (const file of [...SOURCES, ...LANGS.map(l => `lang/${l}.json`)]) {
+    const text = read(file);
+    if (file !== OLD_WORKER_CLEANUP && /\bsw\.js\b|optimal-foundry-sw\.js/.test(text)) found.push(`${file}: names the worker's file`);
+    if (/\bswStatus\b/.test(text)) found.push(`${file}: swStatus`);
+    // The setting is `localCache`; `navigator.serviceWorker` (the old worker's cleanup) is not the setting key.
+    if (/["'`]serviceWorker["'`]/.test(text)) found.push(`${file}: the serviceWorker setting key`);
+  }
+  assert.deepEqual(found, []);
 });
 
-test("service worker: the bridge file exists and loads the module's worker", () => {
-  assert.ok(exists("optimal-foundry-sw.js"), "optimal-foundry-sw.js is missing from the module root");
-  const bridge = read("optimal-foundry-sw.js");
-  assert.match(bridge, /importScripts\(/);
-  assert.match(bridge, /modules\/optimal-foundry\/sw\.js/);
+test("lang: what a user reads never says Service Worker or bridge", () => {
+  for (const l of LANGS) {
+    for (const [key, text] of Object.entries(flat[l])) {
+      assert.doesNotMatch(text, /service[ -]?worker|\bbridge\b|\bponte\b|arquivo-ponte/i, `${l}: ${key}`);
+    }
+  }
 });
 
 const manifest = JSON.parse(read("module.json"));
@@ -141,12 +151,13 @@ test("manifest: every path exists, and version, download and changelog agree", (
 test("release: the zip holds every top-level path the module loads at runtime", () => {
   const top = p => p.split("/")[0];
   const needed = new Set(manifestPaths.map(top));
-  // The Service Worker and its bridge are loaded by URL, never imported.
-  needed.add("sw.js").add("optimal-foundry-sw.js");
   for (const file of walk("scripts", [".mjs"])) {
     const text = read(file);
-    // Paths built on the module's folder: templates, the worker script…
-    for (const m of text.matchAll(/\$\{MODULE_PATH\}\/([A-Za-z0-9_-]+(?:\.[A-Za-z0-9_-]+)*)/g)) needed.add(m[1]);
+    // Paths built on the module's folder: the templates…
+    // (The old-worker cleanup names a file that no longer exists on purpose: it is looked for in browsers, not loaded.)
+    for (const m of text.matchAll(/\$\{MODULE_PATH\}\/([A-Za-z0-9_-]+(?:\.[A-Za-z0-9_-]+)*)/g)) {
+      if (!(file === OLD_WORKER_CLEANUP && m[1] === "sw.js")) needed.add(m[1]);
+    }
     // Imports that leave scripts/ (the vendored bundle).
     for (const m of text.matchAll(/(?:from\s+|import\(\s*)["'](\.{1,2}\/[^"']+)["']/g)) {
       const rel = path.relative(ROOT, path.resolve(ROOT, path.dirname(file), m[1]));

@@ -1,5 +1,39 @@
 # Changelog
 
+## 0.3.0 (2026-11-09)
+
+### Before you update
+
+- **Nothing to copy any more.** The local cache now runs inside the game's own page, so it turns itself on in every browser on HTTPS or `localhost`, on any hosting. There is no file to put in the Data folder, no header to set on a CDN, and no "One step left" notice anywhere.
+- If you copied `optimal-foundry-sw.js` to the Data folder for 0.2.0 (or 0.1.0), it is no longer used: you can delete it. If you added a `Service-Worker-Allowed` response-header rule on a CDN or a proxy, you can remove it too.
+- **Players keep the files they already have.** The new cache reads what 0.2.0 stored, and each browser drops the old background piece the first time it loads the game with 0.3.0 (the world may need one reload after the update).
+- The world setting *Keep files in the browser* has a new internal name and starts on again. If you had turned it off, turn it off again in the module's settings.
+
+### Local cache
+
+- It is off only when the setting is off, the page is not on HTTPS or `localhost`, or the browser cannot keep files this way. The dashboard, the Sharing tab and My connection say which of the three, in one sentence.
+- What it covers: the images and videos a scene draws, the sounds, and everything downloaded ahead. A long piece of music (over 10 minutes, which the game plays straight from the network) is played from the kept copy once the whole optimized file is stored.
+- What it leaves to the browser's own cache: pictures shown in character sheets, journals and chat.
+- Same rules as before: optimized files are kept for good, other media is checked against the server at most every 30 seconds, and the oldest files go first when the space set in *My connection* fills up (never more than 60% of what the browser offers, and no single file above half of it). Requests for part of a file, or that ask not to be stored, go to the network untouched.
+- Downloads made ahead of time stop as soon as the game needs the connection, by cancelling the download itself.
+- Several tabs of the same game share the stored files and decide together what to remove.
+- If something fails inside the cache, the file comes from the network as if the cache did not exist.
+
+### Sharing between players
+
+- "The local cache is not active" now only happens on a page without HTTPS, in a browser without support or when the setting is off, and the texts say so. Players no longer read that the game master has not turned the cache on, unless the setting really is off.
+
+### Interface
+
+- The **Cache active / No cache** pill, the Sharing tab and My connection show how much is kept and the space available; the worker version, script and "outdated" rows are gone. The Sharing tab also says whether the browser protects the stored files from its own cleanup.
+- The text of *Keep files in the browser* says that nothing needs installing.
+
+### Project
+
+- The Service Worker, its one-line bridge file and their tests are gone. `swStatus` and `recheckServiceWorker` in the module's API became `cacheStatus`.
+- A new check fails the tests if any script, template or text still mentions the old files, `swStatus` or the old setting name.
+- The release zip no longer lists the two files, and both workflows use the current versions of GitHub's checkout and setup-node actions (`v7`, which run on Node 24).
+
 ## 0.2.0 (2026-11-09)
 
 ### Before you update

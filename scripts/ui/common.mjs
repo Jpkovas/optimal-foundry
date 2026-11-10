@@ -1,6 +1,5 @@
 import { MODULE_ID, MODULE_PATH, warn } from "../constants.mjs";
 import { getSetting } from "../settings.mjs";
-import { recheckServiceWorker } from "../p2p/sw-client.mjs";
 import { formatBytes, formatMbps, playerHealth } from "./format.mjs";
 
 /** Shared helpers and the live-refreshing window base of the dashboard and the "My connection" panel. */
@@ -83,64 +82,23 @@ export const reasonLabel = reason => codeLabel(reason, ["Reasons", "Media.Reason
 /** Why this browser cannot convert anything (`conversionBlocker()` of the converter), in plain words; "" when it can. */
 export const blockerNote = blocker => (blocker ? maybeL(`Blocker.${blocker}`, "") : "");
 
-/** Local cache (Service Worker) block shared by the dashboard and the player panel. */
-export function describeSw(sw) {
-  if (!sw) return null;
+/**
+ * The local cache of this browser as the dashboard and "My connection" show it. `reason` (one plain sentence, only
+ * when the cache is not active) says why: off in the world's settings, a page without HTTPS, a browser without
+ * Cache Storage, or a failure.
+ * @param {object} [cache]  `cacheStatus()`
+ * @param {boolean} [insecureSaid]  The window already shows the notice of a page without HTTPS: do not say it twice
+ */
+export function describeCache(cache, insecureSaid = false) {
+  if (!cache) return null;
   return {
-    supported: yesNo(sw.supported),
-    registered: yesNo(sw.registered),
-    controlling: yesNo(sw.controlling),
-    isControlling: !!sw.controlling,
-    version: sw.version || "—",
-    outdated: !!sw.outdated,
-    persisted: sw.persisted === null || sw.persisted === undefined ? "—" : yesNo(sw.persisted),
-    cachedFiles: fmtCount(num(sw.cachedFiles)),
-    cachedBytes: fmtBytes(num(sw.cachedBytes)),
-    quota: fmtBytes(setting("cacheQuotaMB", 0) * 1_048_576),
-    needsSetup: !!sw.needsSetup,
-    // While the setup step is pending, that step is the reason: the GM gets instructions, a player a plain note.
-    reason: sw.needsSetup ? "" : codeLabel(sw.reason, ["P2P.SwReason", "Reasons"])
+    active: !!cache.active,
+    persisted: cache.persisted === null || cache.persisted === undefined ? "—" : yesNo(cache.persisted),
+    cachedFiles: fmtCount(num(cache.cachedFiles)),
+    cachedBytes: fmtBytes(num(cache.cachedBytes)),
+    quota: fmtBytes(num(cache.quotaBytes)),
+    reason: (cache.active || (insecureSaid && (cache.reason === "insecure"))) ? "" : codeLabel(cache.reason, ["CacheReason"])
   };
-}
-
-/** Usual place of Foundry's Data folder on each operating system (the defaults in Foundry's documentation). */
-const DATA_FOLDERS = [
-  { os: "Windows", path: "%localappdata%\\FoundryVTT\\Data" },
-  { os: "macOS", path: "~/Library/Application Support/FoundryVTT/Data" },
-  { os: "Linux", path: "~/.local/share/FoundryVTT/Data" }
-];
-
-/**
- * The "finish setup" step of the local cache, for a game master whose browser found no usable bridge file in the
- * Data folder: what is missing in one sentence and where the Data folder usually is. Null when there is nothing
- * to do, and always for players (the step is the game master's; a page without HTTPS has its own notice).
- * @param {object} [sw]  `swStatus()`
- */
-export function describeSetup(sw) {
-  if (!game.user.isGM || !sw?.needsSetup || !window.isSecureContext) return null;
-  const stale = sw.dataRootCopy === "stale";
-  return { stale, missing: L(stale ? "Setup.Stale" : "Setup.Missing"), folders: DATA_FOLDERS };
-}
-
-/**
- * "Check again" of the setup step: run the Service Worker registration again and say what it found.
- * @param {HTMLButtonElement} [button]  The clicked button, disabled while the check runs
- * @returns {Promise<object|undefined>} The new `swStatus()`
- */
-export async function recheckSetup(button) {
-  if (button) button.disabled = true;
-  let sw;
-  try {
-    sw = await recheckServiceWorker();
-  } catch (err) {
-    warn("ui: checking the local cache again failed", err);
-  } finally {
-    if (button) button.disabled = false;
-  }
-  if (sw?.needsSetup) ui.notifications.warn(L(sw.dataRootCopy === "stale" ? "Setup.StillStale" : "Setup.StillMissing"));
-  else if (sw?.registered) ui.notifications.info(L("Setup.Done"));
-  else ui.notifications.warn(codeLabel(sw?.reason, ["P2P.SwReason", "Reasons"]) || L("Dashboard.Notify.Unavailable"));
-  return sw;
 }
 
 /**

@@ -130,9 +130,9 @@
         "Name": "Jogadores compartilham arquivos entre si",
         "Hint": "Quem já baixou um arquivo envia direto para os outros jogadores, poupando a sua internet. Precisa de HTTPS e do cache local; atrás de um CDN não é usado. Jogadores que compartilham veem o endereço IP uns dos outros, e cada um escolhe se participa."
       },
-      "serviceWorker": {
+      "localCache": {
         "Name": "Guardar arquivos no navegador",
-        "Hint": "Cada jogador guarda as versões leves no próprio navegador e não baixa de novo na próxima sessão. Precisa de HTTPS (ou localhost)."
+        "Hint": "O navegador de cada jogador guarda as versões leves de imagens, vídeos e sons e não baixa de novo na próxima sessão. Liga sozinho em todo navegador com HTTPS (ou localhost): não há nada para instalar ou copiar."
       },
       "iceServers": {
         "Name": "Servidores de conexão (STUN/TURN)",
@@ -300,13 +300,11 @@
         "BudgetSlowed": "O download antecipado está mais lento agora ({rate} em vez de até {ceiling}): a conexão está respondendo devagar ({rtt} ms), então o módulo deixa espaço para o jogo."
       },
       "P2P": {
-        "ServiceWorker": "Cache local",
-        "SwActive": "Cache ativo",
-        "SwInactive": "Sem cache",
-        "Supported": "Este navegador suporta",
-        "Registered": "Instalado",
-        "Controlling": "Ativo nesta página",
         "Cache": "Arquivos no cache",
+        "LocalCache": "Cache local",
+        "CacheActive": "Cache ativo",
+        "CacheInactive": "Sem cache",
+        "Persisted": "Protegido contra a limpeza do próprio navegador",
         "Swarm": "Compartilhamento deste navegador",
         "PeersCount": "{count} conexão(ões)",
         "Sent": "Enviado",
@@ -546,25 +544,10 @@
       "NoPlayer": "Optimal Foundry: nenhum jogador on-line para medir o CDN. Tente de novo com um jogador conectado.",
       "ProbeFailed": "Optimal Foundry: a medição do CDN falhou. Veja o console."
     },
-    "Sw": {
-      "Version": "Versão",
-      "OutdatedBadge": "desatualizado",
-      "Outdated": "Optimal Foundry: o arquivo optimal-foundry-sw.js que está na pasta Data do Foundry é uma cópia de uma versão antiga do módulo (v{version}, esperado v{expected}). Troque pelo arquivo-ponte de mesmo nome que está na pasta do módulo (Data/modules/optimal-foundry); depois disso, as atualizações do módulo não pedem nova cópia.",
-      "OutdatedServer": "Optimal Foundry: o cache local ainda está rodando uma versão antiga (v{version}, esperado v{expected}) e o servidor não ofereceu uma mais nova. Recarregue a página; se este aviso voltar, o servidor ou um CDN na frente dele ainda está entregando um modules/optimal-foundry/sw.js antigo.",
-      "Persisted": "Armazenamento persistente"
-    },
     "Preload": {
       "GMOnly": "Só o mestre pode marcar as próximas cenas."
     },
     "P2P": {
-      "SwReason": {
-        "insecure": "O cache local precisa de HTTPS (ou localhost).",
-        "unsupported": "Este navegador não consegue manter um cache local.",
-        "scopeDenied": "O cache local não pôde começar: o arquivo-ponte do módulo não está na pasta Data do Foundry.",
-        "notFound": "O cache local não pôde começar: o arquivo do módulo não foi encontrado no servidor.",
-        "notActive": "O cache local foi instalado, mas não começou a tempo. Recarregue a página.",
-        "error": "O cache local falhou ao iniciar. Veja o console."
-      },
       "SwarmReason": {
         "disabled": "O compartilhamento está desligado nas configurações do módulo.",
         "cdn": "O jogo está atrás de um CDN, que já entrega os arquivos rápido, então os jogadores não mandam arquivos uns para os outros.",
@@ -573,7 +556,7 @@
         "insecure": "O compartilhamento precisa de HTTPS (ou localhost).",
         "noWebRTC": "Este navegador não consegue abrir conexões diretas com outros jogadores.",
         "noCrypto": "Este navegador não consegue conferir os arquivos que receberia.",
-        "noCache": "O cache local não está ativo neste navegador, e o compartilhamento precisa dele.",
+        "noCache": "O compartilhamento precisa do cache local, e ele não está ativo neste navegador (o navegador não tem suporte, ou ele está desligado nas configurações deste mundo).",
         "error": "O compartilhamento falhou ao iniciar. Veja o console.",
         "local": "Este navegador roda no próprio computador do servidor, então fica de fora do compartilhamento de propósito: o que ele enviasse usaria a internet do servidor."
       },
@@ -592,6 +575,12 @@
         "error": "o navegador recusou abrir a conexão"
       }
     },
+    "CacheReason": {
+      "off": "O mestre desligou o cache local neste mundo, então os arquivos são baixados de novo a cada sessão e os jogadores não conseguem compartilhá-los.",
+      "insecure": "O cache local precisa de HTTPS (ou localhost). Nesta página os arquivos são baixados de novo a cada sessão e os jogadores não conseguem compartilhá-los.",
+      "unsupported": "Este navegador não tem suporte ao cache local. Os arquivos são baixados de novo a cada sessão e não dá para compartilhá-los.",
+      "error": "O cache local falhou ao iniciar. Veja o console."
+    },
     "Connection": {
       "Title": "Minha conexão",
       "Menu": {
@@ -609,7 +598,6 @@
       "ClearCache": "Limpar cache deste aparelho",
       "ClearCacheConfirm": "Apagar os arquivos otimizados guardados neste navegador? Eles são baixados de novo quando precisar.",
       "ClearCacheDone": "Optimal Foundry: cache limpo ({size} liberados).",
-      "CacheNotEnabled": "O mestre ainda não ligou o cache local neste servidor. Até lá, os arquivos são baixados de novo a cada sessão e os jogadores não conseguem compartilhá-los.",
       "NotChosen": "Você ainda não respondeu às primeiras perguntas deste navegador. Até responder, ele não compartilha nada com os outros jogadores.",
       "Choose": "Escolher"
     },
@@ -805,20 +793,6 @@
         "tracker": "Uma caixinha de estado sobre o mapa."
       }
     },
-    "Setup": {
-      "Title": "Falta um passo: ligar o cache local",
-      "Missing": "O cache local (e o compartilhamento entre jogadores) só começa a funcionar quando um arquivo pequeno do módulo, o arquivo-ponte, estiver na pasta Data do Foundry.",
-      "Stale": "O arquivo optimal-foundry-sw.js que está na pasta Data do Foundry é de uma versão antiga do módulo e precisa ser trocado pelo novo.",
-      "How": "Copie o arquivo optimal-foundry-sw.js da pasta do módulo (Data/modules/optimal-foundry) para dentro da própria pasta Data, ao lado das pastas modules e worlds, substituindo o arquivo se ele já estiver lá. Depois clique em Verificar de novo.",
-      "Check": "Verificar de novo",
-      "Where": "Onde fica a pasta Data?",
-      "WhereNote": "Esses são os lugares de costume. Se você escolheu outra pasta ao instalar o Foundry, ou usa um serviço de hospedagem, procure a pasta que tem modules e worlds dentro.",
-      "Done": "Optimal Foundry: o cache local está ligado.",
-      "StillMissing": "Optimal Foundry: o arquivo ainda não foi encontrado. Confira se o optimal-foundry-sw.js está dentro da própria pasta Data, com esse nome exato.",
-      "StillStale": "Optimal Foundry: o arquivo na pasta Data ainda é o antigo. Troque pelo que está na pasta do módulo.",
-      "Short": "Cache local: falta um passo",
-      "Finish": "Concluir"
-    },
     "Blocker": {
       "insecure": "Esta página não está em HTTPS (nem em localhost), então o navegador não deixa converter arquivos, usar o cache local nem compartilhar entre jogadores aqui. O download antecipado e o controle de rede continuam funcionando. Para usar tudo, abra o mundo por um endereço https://, ou por localhost no próprio computador do servidor.",
       "unsupported": "Este navegador não consegue converter arquivos. Use um Chrome, Edge ou Firefox atualizado, ou o aplicativo do Foundry."
@@ -836,7 +810,7 @@
       "ShareNo": "compartilhamento: desligado ({reason})",
       "Blocker": {
         "https": "a página não está em HTTPS",
-        "cache": "o cache local não está ativo nesse navegador",
+        "cache": "o cache local não está ativo lá (sem HTTPS, sem suporte do navegador, ou desligado)",
         "local": "está no computador do próprio servidor e fica de fora de propósito",
         "choice": "desligado nesse navegador, ou o jogador ainda não escolheu"
       }
@@ -853,7 +827,7 @@
       "Moved": "Trocado entre os jogadores",
       "Why": {
         "https": "A página dos jogadores não está em HTTPS, e o compartilhamento precisa disso.",
-        "cache": "O cache local não está ativo no navegador dos jogadores, e o compartilhamento precisa dele.",
+        "cache": "O cache local não está ativo no navegador dos jogadores (página sem HTTPS, navegador sem suporte, ou desligado nas configurações deste mundo), e o compartilhamento precisa dele.",
         "choice": "Os jogadores desligaram, ou ainda não escolheram (cada um é perguntado na primeira vez que entra).",
         "local": "Os jogadores estão no computador do próprio servidor e ficam de fora de propósito."
       }

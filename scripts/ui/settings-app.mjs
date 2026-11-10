@@ -18,7 +18,7 @@ const ADVANCED = [
     "videoStripAudio", "convertAnimatedGif", "skipMp3BelowKbps", "minSavingsPct", "includeCompendia", "protectActiveScene"] },
   { id: "network", icon: "fa-solid fa-network-wired", keys: ["maxConcurrentRequests", "preloadSharePct", "staggerJoin",
     "idleSeconds", "preloadMaxFileMB", "predecodeNext"] },
-  { id: "p2p", icon: "fa-solid fa-share-nodes", keys: ["serviceWorker", "p2pMinFileKB", "p2pTimeoutSec", "iceServers"] }
+  { id: "p2p", icon: "fa-solid fa-share-nodes", keys: ["localCache", "p2pMinFileKB", "p2pTimeoutSec", "iceServers"] }
 ];
 
 const PRESET_ICONS = { recommended: "fa-solid fa-star", saver: "fa-solid fa-feather", quality: "fa-solid fa-gem", networkOnly: "fa-solid fa-hand" };
